@@ -1,0 +1,55 @@
+# === Java ===
+*.class
+*.log
+*.ctxt
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# === Maven ===
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+
+# === IntelliJ IDEA ===
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# === VS Code ===
+.vscode/
+
+# === Eclipse (раптом відкриватимеш у ньому) ===
+.project
+.classpath
+.settings/
+
+# === Android / Appium ===
+*.apk
+*.ap_          # згенеровані пакети
+*.dex
+*.class
+*.so
+*.apk.idsig
+build/
+captures/
+.gradle/
+local.properties   # містить шлях до Android SDK (індивідуальний для кожної машини)
+
+# === MacOS ===
+.DS_Store
+
+# === Logs & Temp ===
+*.log
+*.tmp
+*.swp
+*.swo
+
+# === Reports ===
+/test-output/
+/surefire-reports/
+/allure-results/
+/allure-report/
