@@ -30,6 +30,54 @@ jobs:
           distribution: 'temurin'
 
 
+      - name: Set up Node.js
+
+        uses: actions/setup-node@v4
+
+        with:
+
+          node-version: 20
+ 
+     
+
+      - name: Install Appium and drivers
+
+        run: |
+
+          npm install -g appium
+
+          appium driver install uiautomator2
+
+          appium driver install xcuitest
+ 
+     
+
+      - name: Verify Appium installation
+
+        run: |
+
+          appium --version
+
+          appium driver list
+ 
+      
+
+      - name: Start Android emulator
+
+        uses: reactivecircus/android-emulator-runner@v2
+
+        with:
+
+          api-level: 30
+
+          target: default
+
+          arch: x86_64
+
+          profile: pixel
+
+          script: mvn clean test -Dtest=HomeTest
+ 
       - name: Cache Maven packages
 
         uses: actions/cache@v4
