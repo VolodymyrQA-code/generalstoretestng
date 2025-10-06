@@ -30,6 +30,23 @@ jobs:
           distribution: 'temurin'
 
 
+      - name: Cache Maven packages
+
+        uses: actions/cache@v4
+
+        with:
+
+          path: ~/.m2
+
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+
+          restore-keys: |
+
+            ${{ runner.os }}-m2
+
+ 
+
+
       - name: Set up Node.js
 
         uses: actions/setup-node@v4
@@ -63,35 +80,19 @@ jobs:
       
 
       - name: Start Android emulator
-
         uses: reactivecircus/android-emulator-runner@v2
-
         with:
-
           api-level: 30
-
           target: default
-
           arch: x86_64
-
           profile: pixel
+          script: |
+            appium --base-path /wd/hub &
 
-          script: mvn clean test -Dtest=HomeTest
- 
-      - name: Cache Maven packages
+            sleep 10
+            curl http://127.0.0.1:4723/wd/hub/status
 
-        uses: actions/cache@v4
-
-        with:
-
-          path: ~/.m2
-
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-
-          restore-keys: |
-
-            ${{ runner.os }}-m2
-
+    
 
       - name: Build and run tests
 
