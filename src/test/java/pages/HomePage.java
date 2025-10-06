@@ -102,12 +102,23 @@ public class HomePage {
             }
             }
 
-    public void enterAndVerifyName(String name) {
+    public void enterAndVerifyValidName(String name) {
     utils.click(nameField);
     utils.type(nameField, name);
     utils.verifyText(nameField, name); 
     utils.closeKeyboard();
     }
+
+    public void checkEmptyName(String name) {
+    utils.click(letsShopBtn);
+    boolean isErrorVisible = utils.isTextVisibleNow("Please enter your name");
+    if (isErrorVisible) {
+        System.out.println("[PASS] Повідомлення про помилку 'Please enter your name' відображається");
+    } else {
+        System.out.println("[FAIL] Повідомлення про помилку не з'явилось");
+        throw new AssertionError("Повідомлення про помилку 'Please enter your name' не з'явилось");
+    }
+}
 
     public void verifyMaleRadioSelected() {
     WebElement maleRadioElement = wait.until(ExpectedConditions.elementToBeClickable(maleRadio));

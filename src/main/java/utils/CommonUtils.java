@@ -177,6 +177,18 @@ public class CommonUtils {
     }
 }
 
+    //Перевіряє, чи з'явився елемент з певним текстом
+    public boolean isTextVisibleNow(String text) {
+        try {
+            driver.findElement(AppiumBy.xpath("//*[contains(@text, '" + text + "')]"));
+            System.out.println("[INFO] Текст '" + text + "' відображається");
+            return true;
+        } catch (Exception e) {
+            System.out.println("[WARN] Текст '" + text + "' не знайдено");
+            return false;
+        }
+    }
+
 // Скролить до тексту і клікає по ньому
 public void scrollToTextAndClick(String visibleText) {
     try {

@@ -10,6 +10,11 @@ public class ProductsPage {
 
 
     private final By ToolbarTitle = By.id("com.androidsample.generalstore:id/toolbar_title");
+    private final By BackBtn = By.id("com.androidsample.generalstore:id/appbar_btn_back");
+    private final By CartBtn = By.id("com.androidsample.generalstore:id/appbar_btn_cart");
+    // Plese add some product at first
+
+
     
 
 
