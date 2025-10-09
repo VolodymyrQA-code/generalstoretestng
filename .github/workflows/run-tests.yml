@@ -90,7 +90,7 @@ jobs:
 
             echo "Checking Appium status..."
 
-            curl http://127.0.0.1:4723/wd/hub/status
+            curl http://127.0.0.1:4723/status
 
             adb devices
 
