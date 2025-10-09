@@ -13,6 +13,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.remote.DesiredCapabilities;
 
 
+import java.net.URL;
 import java.net.URI;
 import java.time.Duration;
 
@@ -35,23 +36,27 @@ public boolean isTextEqual(By locator, String expectedText) {
 @BeforeAll
 static void setup() {
     try {
-       UiAutomator2Options options = new UiAutomator2Options()
+        UiAutomator2Options options = new UiAutomator2Options()
                 .setDeviceName("emulator-5554")
                 .setApp(System.getProperty("user.dir") + "/General-Store.apk")
                 .setAppPackage("com.androidsample.generalstore")
                 .setAppActivity("com.androidsample.generalstore.SplashActivity")
                 .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
                 .setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(60));
-                options.setCapability("appium:ignoreHiddenApiPolicyError", true);
-                options.setCapability("adbExecTimeout", 60000);
 
-        driver = new AndroidDriver(new URI("http://127.0.0.1:4723/").toURL(), options);
+        // Додаткові capabilities окремо:
+        options.setCapability("appium:ignoreHiddenApiPolicyError", true);
+        options.setCapability("appium:adbExecTimeout", 60000);
+
+        driver = new AndroidDriver(new URI("http://127.0.0.1:4723/wd/hub").toURL(), options);
         wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
     } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException(e);
     }
 }
+
 
    
 
