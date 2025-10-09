@@ -52,10 +52,10 @@ jobs:
           disable-animations: true
           script: |
             echo "Starting Appium server..."
-            appium --base-path /wd/hub > appium.log 2>&1 &
-            sleep 15
+            appium > appium.log 2>&1 &
+            sleep 20
             echo "Checking Appium status..."
-            curl http://127.0.0.1:4723/wd/hub/status
+            curl http://127.0.0.1:4723/status
 
             echo "Running Maven tests..."
             mvn clean test -Dsurefire.useFile=false
