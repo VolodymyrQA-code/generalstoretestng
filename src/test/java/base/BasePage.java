@@ -42,20 +42,29 @@ static void setup() {
                 .setAppPackage("com.androidsample.generalstore")
                 .setAppActivity("com.androidsample.generalstore.SplashActivity")
                 .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
-                .setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(60));
+                .setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(120));
 
-        // Додаткові capabilities окремо:
+        // Додаткові capability для стабільності:
         options.setCapability("appium:ignoreHiddenApiPolicyError", true);
-        options.setCapability("appium:adbExecTimeout", 60000);
+        options.setCapability("adbExecTimeout", 120000); // 2 хвилини
+        options.setCapability("uiautomator2ServerInstallTimeout", 120000);
+        options.setCapability("uiautomator2ServerLaunchTimeout", 120000);
+        options.setCapability("appWaitActivity", "com.androidsample.generalstore.MainActivity");
+        options.setCapability("newCommandTimeout", 300);
+        options.setCapability("fullReset", true);
 
-        driver = new AndroidDriver(new URI("http://127.0.0.1:4723/wd/hub").toURL(), options);
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        // Затримка, щоб емулятор устиг запуститися на CI
+        Thread.sleep(10000);
+
+        driver = new AndroidDriver(new URL("http://127.0.0.1:4723/wd/hub"), options);
+        wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
     } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException(e);
     }
 }
+
 
 
    
