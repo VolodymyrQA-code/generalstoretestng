@@ -11,7 +11,7 @@ jobs:
   test:
 
     runs-on: ubuntu-latest
- 
+
     steps:
 
       - name: Checkout repository
@@ -50,19 +50,31 @@ jobs:
 
           node-version: 20
  
-      - name: Install Appium and drivers
+      - name: Install Appium 2.x and drivers
 
         run: |
 
-          npm install -g appium
+          npm install -g appium@latest
 
           appium driver install uiautomator2
 
-          appium driver install xcuitest
+          echo "Appium version:"
 
           appium --version
 
+          echo "Installed drivers:"
+
           appium driver list
+ 
+      - name: Enable KVM group permissions
+
+        run: |
+
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+
+          sudo udevadm control --reload-rules
+
+          sudo udevadm trigger --name-match=kvm
  
       - name: Start emulator and run tests
 
@@ -76,29 +88,109 @@ jobs:
 
           arch: x86_64
 
-          profile: pixel
+          profile: pixel_4
 
-          emulator-options: -no-window -noaudio -no-boot-anim
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+
+          disable-animations: true
 
           script: |
 
-            echo "Starting Appium..."
+            # Wait for emulator to be ready
 
-            appium --base-path /wd/hub > appium.log 2>&1 &
+            echo "Waiting for emulator to be ready..."
 
-            sleep 20
+            adb wait-for-device
 
-            echo "Checking Appium status..."
+            adb shell input keyevent 82
 
-            curl http://127.0.0.1:4723/status
 
-            adb devices
+            while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
 
-            mvn clean test -Dtest=HomeTest || true
+              echo "Waiting for boot to complete..."
+
+              sleep 2
+
+            done
+
+            echo "Emulator boot completed!"
+
+
+            echo "Device status:"
+
+            adb devices -l
+
+
+            echo "Starting Appium 2.x server..."
+
+            appium --log appium.log --log-level info --allow-insecure chromedriver_autodownload > appium-console.log 2>&1 &
+
+            APPIUM_PID=$!
+
+            echo "Appium PID: $APPIUM_PID"
+
+
+            echo "Waiting for Appium to be ready..."
+
+            for i in {1..30}; do
+
+              if curl -s http://127.0.0.1:4723/status > /dev/null 2>&1; then
+
+                echo "Appium is ready!"
+
+                break
+
+              fi
+
+              if [ $i -eq 30 ]; then
+
+                echo "Appium failed to start within 30 seconds"
+
+                echo "Console output:"
+
+                cat appium-console.log
+
+                exit 1
+
+              fi
+
+              echo "Attempt $i: Waiting for Appium..."
+
+              sleep 1
+
+            done
+
+
+            echo "Appium status:"
+
+            curl -s http://127.0.0.1:4723/status
+
+
+            echo "Running tests..."
+
+            mvn clean test -Dtest=HomeTest || TEST_EXIT_CODE=$?
+
+
+            if [ ! -z "$TEST_EXIT_CODE" ] && [ $TEST_EXIT_CODE -ne 0 ]; then
+
+              echo "Tests failed. Appium logs:"
+
+              cat appium.log
+
+            fi
+
+
+            echo "Generating Allure report..."
 
             mvn allure:report
+
+
+            kill $APPIUM_PID || true
+
+
+            exit ${TEST_EXIT_CODE:-0}
  
-      - name: Upload Allure report artifact
+      - name: Upload Allure report
 
         if: always()
 
@@ -110,4 +202,39 @@ jobs:
 
           path: target/site/allure-maven-plugin/
 
+          retention-days: 30
+ 
+      - name: Upload Appium logs
+
+        if: failure()
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: appium-logs
+
+          path: |
+
+            appium.log
+
+            appium-console.log
+
+          retention-days: 7
+ 
+      - name: Upload test screenshots
+
+        if: failure()
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: test-screenshots
+
+          path: target/screenshots/
+
+          if-no-files-found: ignore
+
+          retention-days: 7
  
