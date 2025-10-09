@@ -1,11 +1,11 @@
 name: Java UI Tests with Allure
- 
+
 on:
 
   push:
 
   pull_request:
- 
+
 jobs:
 
   test:
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
 
         uses: actions/checkout@v4
- 
+
       - name: Set up JDK 17
 
         uses: actions/setup-java@v4
@@ -27,7 +27,7 @@ jobs:
           java-version: '17'
 
           distribution: 'temurin'
- 
+
       - name: Cache Maven packages
 
         uses: actions/cache@v4
@@ -41,7 +41,7 @@ jobs:
           restore-keys: |
 
             ${{ runner.os }}-m2
- 
+
       - name: Set up Node.js
 
         uses: actions/setup-node@v4
@@ -49,7 +49,7 @@ jobs:
         with:
 
           node-version: 20
- 
+
       - name: Install Appium 2.x and drivers
 
         run: |
@@ -65,7 +65,7 @@ jobs:
           echo "Installed drivers:"
 
           appium driver list
- 
+
       - name: Enable KVM group permissions
 
         run: |
@@ -75,24 +75,30 @@ jobs:
           sudo udevadm control --reload-rules
 
           sudo udevadm trigger --name-match=kvm
- 
+
       - name: Start emulator and run tests
 
         uses: reactivecircus/android-emulator-runner@v2
+
+        env:
+
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 60
 
         with:
 
           api-level: 30
 
-          target: default
+          target: google_apis
 
           arch: x86_64
 
           profile: pixel_4
 
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096
 
           disable-animations: true
+
+          force-avd-creation: false
 
           script: |
 
@@ -104,6 +110,7 @@ jobs:
 
             adb shell input keyevent 82
 
+            # Wait for boot to complete
 
             while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
 
@@ -115,11 +122,13 @@ jobs:
 
             echo "Emulator boot completed!"
 
+            # Check device status
 
             echo "Device status:"
 
             adb devices -l
 
+            # Start Appium 2.x server (no base-path needed)
 
             echo "Starting Appium 2.x server..."
 
@@ -129,6 +138,7 @@ jobs:
 
             echo "Appium PID: $APPIUM_PID"
 
+            # Wait for Appium to start
 
             echo "Waiting for Appium to be ready..."
 
@@ -160,16 +170,19 @@ jobs:
 
             done
 
+            # Verify Appium status
 
             echo "Appium status:"
 
             curl -s http://127.0.0.1:4723/status
 
+            # Run tests
 
             echo "Running tests..."
 
             mvn clean test -Dtest=HomeTest || TEST_EXIT_CODE=$?
 
+            # Print Appium logs on failure
 
             if [ ! -z "$TEST_EXIT_CODE" ] && [ $TEST_EXIT_CODE -ne 0 ]; then
 
@@ -179,17 +192,20 @@ jobs:
 
             fi
 
+            # Generate Allure report
 
             echo "Generating Allure report..."
 
             mvn allure:report
 
+            # Kill Appium
 
             kill $APPIUM_PID || true
 
+            # Exit with test exit code
 
             exit ${TEST_EXIT_CODE:-0}
- 
+
       - name: Upload Allure report
 
         if: always()
@@ -203,7 +219,7 @@ jobs:
           path: target/site/allure-maven-plugin/
 
           retention-days: 30
- 
+
       - name: Upload Appium logs
 
         if: failure()
@@ -221,7 +237,7 @@ jobs:
             appium-console.log
 
           retention-days: 7
- 
+
       - name: Upload test screenshots
 
         if: failure()
