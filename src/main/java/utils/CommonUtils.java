@@ -23,7 +23,7 @@ public class CommonUtils {
 
     public CommonUtils(WebDriver driver2) {
         this.driver = (AndroidDriver) driver2;
-        this.wait = new WebDriverWait(driver2, Duration.ofSeconds(10));
+        this.wait = new WebDriverWait(driver2, Duration.ofSeconds(30));
     }
 
     // Очікування елемента

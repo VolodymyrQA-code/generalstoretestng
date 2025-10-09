@@ -72,6 +72,9 @@ jobs:
             echo "Checking Appium status..."
             curl http://127.0.0.1:4723/wd/hub/status
 
+            echo "Checking current foreground activity..."
+            adb shell dumpsys activity activities | grep mResumedActivity
+
             echo "Running Maven tests..."
             mvn clean test -Dsurefire.useFile=false
 
