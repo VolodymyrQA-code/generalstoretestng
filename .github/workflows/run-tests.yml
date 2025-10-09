@@ -42,6 +42,11 @@ jobs:
           appium --version
           appium driver list
 
+      - name: Download APK
+        run: |
+          echo "Downloading APK..."
+          curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/download/v1.0/General-Store.apk
+
       - name: Start Android Emulator and Run Tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
