@@ -66,35 +66,25 @@ jobs:
           arch: x86_64
           profile: pixel
           script: |
-            export CI=true
             echo "🕓 Waiting for emulator to boot..."
             adb wait-for-device
             boot_completed=""
-            until [ "$boot_completed" = "1" ]; do
+            while [ "$boot_completed" != "1" ]; do
               boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-              sleep 2
+              sleep 5
             done
             echo "✅ Emulator fully booted!"
 
-            echo "🚀 Starting Appium server..."
+            echo "🚀 Starting Appium..."
             appium --base-path /wd/hub > appium.log 2>&1 &
             APPIUM_PID=$!
-            sleep 35
+            sleep 30
 
-            echo "🔍 Checking Appium status..."
-            curl http://127.0.0.1:4723/wd/hub/status || echo "Appium not ready yet, waiting..."
-            sleep 10
+            echo "🧪 Running tests..."
+            mvn clean test -Dsurefire.useFile=false || true
 
-            echo "📱 Checking current foreground activity..."
-            adb shell dumpsys activity activities | grep mResumedActivity || echo "Activity check skipped"
-
-            echo "🧪 Running Maven tests..."
-            mvn clean test -Dsurefire.useFile=false
-
-            echo "🛑 Stopping Appium server..."
+            echo "🛑 Killing Appium..."
             kill $APPIUM_PID || true
-          shell: bash
-
       # 9️⃣ Генерація звіту Allure
       - name: Generate Allure report
         run: mvn allure:report
