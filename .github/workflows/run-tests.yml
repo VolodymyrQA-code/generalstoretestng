@@ -7,13 +7,15 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CI: true  # Для твого методу isCI()
 
     steps:
       # 1️⃣ Клонування репозиторію
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Встановлення JDK
+      # 2️⃣ Встановлення JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -35,14 +37,14 @@ jobs:
         with:
           node-version: 22.19.0
 
-      # 5️⃣ Встановлення Appium 3 і драйверів
+      # 5️⃣ Встановлення Appium та драйверів
       - name: Install Appium and drivers
         run: |
           npm install -g appium@3.0.2
           appium driver install uiautomator2
           appium driver install xcuitest
 
-      # 6️⃣ Налаштування Android SDK шляху (PATH)
+      # 6️⃣ Налаштування Android SDK PATH
       - name: Set up Android SDK path
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
@@ -51,40 +53,42 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      # 7️⃣ Завантаження APK-файлу (щоб не зберігати його в git)
-      - name: Download APK
-        run: |
-          curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/raw/main/General-Store.apk
-          ls -lh General-Store.apk
-
-      # 8️⃣ Запуск Android-емулятора і тестів
-      - name: Start Android emulator and run tests
+      # 7️⃣ Запуск Android емулятора
+      - name: Start Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          env:
-          CI: true
           api-level: 30
           target: default
           arch: x86_64
           profile: pixel
           script: |
-            echo "Starting Appium server..."
-            appium --base-path /wd/hub > appium.log 2>&1 &
-            sleep 15
-            echo "Checking Appium status..."
-            curl http://127.0.0.1:4723/wd/hub/status
+            echo "Eмулятор запущено"
 
-            echo "Checking current foreground activity..."
-            adb shell dumpsys activity activities | grep mResumedActivity
+      # 8️⃣ Завантаження APK
+      - name: Download APK
+        run: |
+          curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/raw/main/General-Store.apk
+          ls -lh General-Store.apk
 
-            echo "Running Maven tests..."
-            mvn clean test -Dsurefire.useFile=false
+      # 9️⃣ Запуск Appium
+      - name: Start Appium server
+        run: |
+          echo "Starting Appium server..."
+          appium --base-path /wd/hub > appium.log 2>&1 &
+          echo "Чекаємо запуску Appium..."
+          for i in {1..30}; do
+            curl -s http://127.0.0.1:4723/wd/hub/status && break || sleep 1
+          done
 
-      # 9️⃣ Генерація Allure-звіту
+      # 🔟 Запуск Maven тестів
+      - name: Run Maven tests
+        run: mvn clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+
+      # 1️⃣1️⃣ Генерація Allure-звіту
       - name: Generate Allure report
         run: mvn allure:report
 
-      # 🔟 Завантаження Allure-звіту як артефакту
+      # 1️⃣2️⃣ Завантаження Allure-звіту як артефакту
       - name: Upload Allure report artifact
         uses: actions/upload-artifact@v4
         with:

@@ -28,6 +28,7 @@ private static boolean isCI() {
     return ci != null && ci.equalsIgnoreCase("true");
 }   
 
+
 public boolean isTextEqual(By locator, String expectedText) {
     try {
         String actualText = driver.findElement(locator).getText().trim();
@@ -45,8 +46,7 @@ public boolean isTextEqual(By locator, String expectedText) {
                     .setApp(System.getProperty("user.dir") + "/General-Store.apk")
                     .setAppPackage("com.androidsample.generalstore")
                     .setAppActivity("com.androidsample.generalstore.SplashActivity")
-                    .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
-                    .setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(20));
+                    .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2);
 
             // Capability'і залежать від середовища
             if (isCI()) {
@@ -58,8 +58,9 @@ public boolean isTextEqual(By locator, String expectedText) {
                 options.setCapability("appWaitActivity", "com.androidsample.generalstore.MainActivity");
                 options.setCapability("newCommandTimeout", 300);
                 options.setCapability("fullReset", true);
+                options.setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(180));
             } else {
-                // Локально - мінімальні затримки
+                options.setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(20));// Локально - мінімальні затримки
             }
 
             // Затримка тільки на CI
@@ -68,21 +69,18 @@ public boolean isTextEqual(By locator, String expectedText) {
             }
 
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
-            System.out.println("Environment: " + (isCI() ? "CI (GitHub Actions)" : "Local"));
-            System.out.println("Connecting to Appium at: " + appiumUrl);
-            
-            driver = new AndroidDriver(new URL(appiumUrl), options);
-            wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        System.out.println("Environment: " + (isCI() ? "CI (GitHub Actions)" : "Local"));
+        System.out.println("Connecting to Appium at: " + appiumUrl);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+        driver = new AndroidDriver(new URL(appiumUrl), options);
+        wait = new WebDriverWait(driver, Duration.ofSeconds(isCI() ? 30 : 15));
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        throw new RuntimeException(e);
     }
+}
 
-
-
-   
 
     @AfterAll
 
