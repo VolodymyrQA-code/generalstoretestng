@@ -61,6 +61,8 @@ jobs:
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          env:
+          CI: true
           api-level: 30
           target: default
           arch: x86_64

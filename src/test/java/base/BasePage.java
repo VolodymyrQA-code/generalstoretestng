@@ -22,7 +22,11 @@ import java.time.Duration;
 public class BasePage {
     protected static AndroidDriver driver;
     protected static WebDriverWait wait;
-    
+
+private static boolean isCI() {
+    String ci = System.getenv("CI");
+    return ci != null && ci.equalsIgnoreCase("true");
+}   
 
 public boolean isTextEqual(By locator, String expectedText) {
     try {
@@ -34,36 +38,47 @@ public boolean isTextEqual(By locator, String expectedText) {
 }
 
 @BeforeAll
-static void setup() {
-    try {
-        UiAutomator2Options options = new UiAutomator2Options()
-                .setDeviceName("emulator-5554")
-                .setApp(System.getProperty("user.dir") + "/General-Store.apk")
-                .setAppPackage("com.androidsample.generalstore")
-                .setAppActivity("com.androidsample.generalstore.SplashActivity")
-                .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
-                .setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(120));
+    static void setup() {
+        try {
+            UiAutomator2Options options = new UiAutomator2Options()
+                    .setDeviceName("emulator-5554")
+                    .setApp(System.getProperty("user.dir") + "/General-Store.apk")
+                    .setAppPackage("com.androidsample.generalstore")
+                    .setAppActivity("com.androidsample.generalstore.SplashActivity")
+                    .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
+                    .setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(20));
 
-        // Додаткові capability для стабільності:
-        options.setCapability("appium:ignoreHiddenApiPolicyError", true);
-        options.setCapability("adbExecTimeout", 1200000); // 2 хвилини
-        options.setCapability("uiautomator2ServerInstallTimeout", 120000);
-        options.setCapability("uiautomator2ServerLaunchTimeout", 120000);
-        options.setCapability("appWaitActivity", "com.androidsample.generalstore.MainActivity");
-        options.setCapability("newCommandTimeout", 300);
-        options.setCapability("fullReset", true);
+            // Capability'і залежать від середовища
+            if (isCI()) {
+                // На GitHub - більше затримок для стабільності
+                options.setCapability("appium:ignoreHiddenApiPolicyError", true);
+                options.setCapability("adbExecTimeout", 1200000); // 20 хвилин
+                options.setCapability("uiautomator2ServerInstallTimeout", 120000);
+                options.setCapability("uiautomator2ServerLaunchTimeout", 120000);
+                options.setCapability("appWaitActivity", "com.androidsample.generalstore.MainActivity");
+                options.setCapability("newCommandTimeout", 300);
+                options.setCapability("fullReset", true);
+            } else {
+                // Локально - мінімальні затримки
+            }
 
-        // Затримка, щоб емулятор устиг запуститися на CI
-        Thread.sleep(10000);
+            // Затримка тільки на CI
+            if (isCI()) {
+                Thread.sleep(10000);
+            }
 
-        driver = new AndroidDriver(new URL("http://127.0.0.1:4723/wd/hub"), options);
-        wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+            String appiumUrl = "http://127.0.0.1:4723/wd/hub";
+            System.out.println("Environment: " + (isCI() ? "CI (GitHub Actions)" : "Local"));
+            System.out.println("Connecting to Appium at: " + appiumUrl);
+            
+            driver = new AndroidDriver(new URL(appiumUrl), options);
+            wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
-    } catch (Exception e) {
-        e.printStackTrace();
-        throw new RuntimeException(e);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
-}
 
 
 
