@@ -61,13 +61,12 @@ jobs:
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          env:
-          CI: true
           api-level: 30
           target: default
           arch: x86_64
           profile: pixel
           script: |
+            export CI=true
             echo "Waiting for emulator to boot..."
             adb wait-for-device
             adb shell getprop sys.boot_completed | grep 1
