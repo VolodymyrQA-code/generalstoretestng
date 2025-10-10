@@ -53,32 +53,28 @@ jobs:
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
-          target: default
-          arch: x86_64
-          profile: pixel
-          disable-animations: true
-          script: |
-            echo "🕓 Waiting for emulator to boot..."
-            adb wait-for-device
-            boot_completed=""
-            while [ "$boot_completed" != "1" ]; do
-              boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-              sleep 5
-            done
-            echo "✅ Emulator fully booted!"
-
-            echo "🚀 Starting Appium..."
-            appium --base-path /wd/hub > appium.log 2>&1 &
-            APPIUM_PID=$!
-            sleep 30
-
-            echo "🧪 Running tests..."
-            mvn clean test -Dsurefire.useFile=false || true
-
-            echo "🛑 Killing Appium..."
-            kill $APPIUM_PID || true
-
+         api-level: 30
+         target: default
+         arch: x86_64
+         profile: pixel
+         disable-animations: true
+         script: >
+           echo "🕓 Waiting for emulator to boot..." &&
+           adb wait-for-device &&
+           boot_completed="" &&
+           while [ "$boot_completed" != "1" ]; do
+             boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r');
+             sleep 5;
+           done &&
+           echo "✅ Emulator fully booted!" &&
+           echo "🚀 Starting Appium..." &&
+           appium --base-path /wd/hub > appium.log 2>&1 & APPIUM_PID=$! &&
+           sleep 30 &&
+           echo "🧪 Running tests..." &&
+           mvn clean test -Dsurefire.useFile=false || true &&
+           echo "🛑 Killing Appium..." &&
+           kill $APPIUM_PID || true
+       
       - name: Generate Allure report
         run: mvn allure:report
 
