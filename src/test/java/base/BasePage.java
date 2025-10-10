@@ -46,11 +46,11 @@ static void setup() {
 
         // Додаткові capability для стабільності:
         options.setCapability("appium:ignoreHiddenApiPolicyError", true);
-        options.setCapability("adbExecTimeout", 120000); // 2 хвилини
-        options.setCapability("uiautomator2ServerInstallTimeout", 120000);
-        options.setCapability("uiautomator2ServerLaunchTimeout", 120000);
+        options.setCapability("adbExecTimeout", 60000); // 2 хвилини
+        options.setCapability("uiautomator2ServerInstallTimeout", 6000);
+        options.setCapability("uiautomator2ServerLaunchTimeout", 6000);
         options.setCapability("appWaitActivity", "com.androidsample.generalstore.MainActivity");
-        options.setCapability("newCommandTimeout", 300);
+        options.setCapability("newCommandTimeout", 3);
         options.setCapability("fullReset", true);
 
         // Затримка, щоб емулятор устиг запуститися на CI
