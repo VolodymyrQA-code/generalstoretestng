@@ -1,27 +1,26 @@
-name: Android UI Tests (Local APK + Appium + Allure)
+name: Java UI Tests with Allure (Local APK)
 
 on:
   push:
   pull_request:
 
 jobs:
-  ui-tests:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     steps:
-      # 1️⃣ Checkout коду
+      # 1️⃣ Клонування репозиторію
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Встановлення JDK 17
+      # 2️⃣ Встановлення JDK
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 3️⃣ Кеш Maven
+      # 3️⃣ Кешування Maven-залежностей
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -30,15 +29,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      # 4️⃣ Встановлення Node.js + Appium
-      - name: Set up Node.js and Appium
+      # 4️⃣ Встановлення Node.js для Appium
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+
+      # 5️⃣ Встановлення Appium 3 і драйверів
+      - name: Install Appium and drivers
         run: |
           npm install -g appium@3.0.2
           appium driver install uiautomator2
           appium driver install xcuitest
-          appium --version
 
-      # 5️⃣ Налаштування Android SDK шляхів
+      # 6️⃣ Налаштування Android SDK
       - name: Set up Android SDK path
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
@@ -47,35 +51,25 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      # 6️⃣ Збірка локального APK (якщо є Android проєкт)
-      - name: Build local APK
+      # 7️⃣ Копіювання локального APK у CI
+      - name: Copy local General-Store.apk into repo
         run: |
-          echo "🏗️ Building APK..."
-          if [ -d "app" ]; then
-            cd app
-            chmod +x ../gradlew || true
-            ../gradlew assembleDebug
-            cd ..
-            cp app/build/outputs/apk/debug/app-debug.apk General-Store.apk
-            echo "✅ Local APK built successfully."
-          else
-            echo "⚠️ No Android module found, using existing General-Store.apk"
-          fi
-          ls -lh General-Store.apk || echo "❌ APK file not found"
+          echo "📦 Copying local APK from /Users/IUAR0044/generalstore/General-Store.apk ..."
+          LOCAL_APK_PATH="/Users/IUAR0044/generalstore/General-Store.apk"
+          TARGET_PATH="${GITHUB_WORKSPACE}/General-Store.apk"
 
-      # 7️⃣ Перевірка, що APK дійсно існує
-      - name: Verify APK file
-        run: |
-          echo "🔍 Checking APK file..."
-          if [ ! -f "General-Store.apk" ]; then
-            echo "❌ APK file missing — build failed or not present."
+          if [ -f "$LOCAL_APK_PATH" ]; then
+            cp "$LOCAL_APK_PATH" "$TARGET_PATH"
+            echo "✅ Copied APK to workspace."
+          else
+            echo "❌ Local APK not found at $LOCAL_APK_PATH"
             exit 1
           fi
-          file General-Store.apk
-          unzip -t General-Store.apk || echo "⚠️ Warning: APK might be corrupted."
 
-      # 8️⃣ Запуск емулятора Android
-      - name: Start Android Emulator and Run Tests
+          ls -lh "$TARGET_PATH"
+
+      # 8️⃣ Запуск емулятора і тестів
+      - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
@@ -94,17 +88,17 @@ jobs:
             APPIUM_PID=$!
             sleep 30
 
-            echo "🧪 Running UI tests..."
+            echo "🧪 Running tests..."
             mvn clean test -Dsurefire.useFile=false || true
 
-            echo "🛑 Stopping Appium..."
+            echo "🛑 Killing Appium..."
             kill $APPIUM_PID || true
 
-      # 9️⃣ Генерація звіту Allure
+      # 9️⃣ Генерація Allure-звіту
       - name: Generate Allure report
         run: mvn allure:report
 
-      # 🔟 Завантаження результатів як артефакт
+      # 🔟 Завантаження Allure-звіту
       - name: Upload Allure report artifact
         uses: actions/upload-artifact@v4
         with:
