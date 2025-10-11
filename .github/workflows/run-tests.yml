@@ -61,16 +61,22 @@ jobs:
           profile: pixel
           script: |
             export CI=true
+            echo "Waiting for package manager service..."
+            for i in {1..60}; do
+              adb shell getprop sys.boot_completed >/dev/null 2>&1 && break
+              sleep 1
+            done
+            sleep 20
             echo "Starting Appium..."
             appium --base-path /wd/hub > appium.log 2>&1 &
             APPIUM_PID=$!
-            sleep 30
+            sleep 40
 
             echo "Running Maven tests..."
             mvn clean test -Dsurefire.useFile=false || true
 
             echo "Stopping Appium..."
-            kill $APPIUM_PID || true
+            kill $APPIUM_PID 2>/dev/null || true
 
       - name: Generate Allure report
         if: always()
