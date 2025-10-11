@@ -1,4 +1,4 @@
-name: Android UI Tests with Allure
+name: Android UI Tests with Allur
 
 on:
   push:
