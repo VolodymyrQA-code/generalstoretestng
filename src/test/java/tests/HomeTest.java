@@ -41,7 +41,7 @@ public class HomeTest extends BasePage {
         SplashPage splashPage = new SplashPage(driver);
 
         // Очікуємо появу splash до 10 секунд
-        boolean isVisible = splashPage.waitForSplashToAppear(10);
+        boolean isVisible = splashPage.isSplashDisplayed();
 
         // Перевірка
         assertTrue(isVisible, "Splash screen should be visible");
