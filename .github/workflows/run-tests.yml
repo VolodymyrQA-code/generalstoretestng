@@ -9,15 +9,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Клонування репозиторію
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2️⃣ Встановлення JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
+      # 3️⃣ Кешування Maven-залежностей
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -26,17 +29,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
+      # 4️⃣ Встановлення Node.js (для Appium)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.19.0
 
+      # 5️⃣ Встановлення Appium і драйверів
       - name: Install Appium and drivers
         run: |
           npm install -g appium@3.0.2
           appium driver install uiautomator2
-          appium driver install xcuitest
 
+      # 6️⃣ Встановлення Android SDK шляхів
       - name: Set up Android SDK path
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
@@ -45,11 +50,26 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      - name: Download APK
+      # 7️⃣ Збірка APK
+      - name: Build APK
         run: |
-          curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/raw/main/General-Store.apk
-          ls -lh General-Store.apk
+          echo "🏗️ Building APK..."
+          cd android || cd . # якщо структура без папки android, пропустить
+          chmod +x gradlew || true
+          ./gradlew assembleDebug
+          APK_PATH=$(find . -type f -name "app-debug.apk" | head -n 1)
+          cp "$APK_PATH" $GITHUB_WORKSPACE/General-Store.apk
+          echo "✅ APK built and copied to workspace!"
 
+      # 8️⃣ Перевірка APK перед тестами
+      - name: Validate APK
+        run: |
+          echo "🔍 Checking APK integrity..."
+          ls -lh General-Store.apk
+          file General-Store.apk
+          unzip -t General-Store.apk || echo "⚠️ APK might be invalid"
+
+      # 9️⃣ Запуск емулятора і тестів
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -67,17 +87,19 @@ jobs:
             echo "🚀 Starting Appium..."
             appium --base-path /wd/hub > appium.log 2>&1 &
             APPIUM_PID=$!
-            sleep 30
+            sleep 25
 
-            echo "🧪 Running tests..."
-            mvn clean test -Dsurefire.useFile=false || true
+            echo "🧪 Running Maven tests..."
+            mvn clean test -Dsurefire.useFile=false
 
-            echo "🛑 Killing Appium..."
+            echo "🛑 Stopping Appium..."
             kill $APPIUM_PID || true
 
+      # 🔟 Генерація звіту Allure
       - name: Generate Allure report
         run: mvn allure:report
 
+      # 1️⃣1️⃣ Завантаження Allure-звіту як артефакту
       - name: Upload Allure report artifact
         uses: actions/upload-artifact@v4
         with:
