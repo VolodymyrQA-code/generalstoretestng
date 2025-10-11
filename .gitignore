@@ -28,8 +28,6 @@ out/
 .settings/
 
 # === Android / Appium ===
-*.apk
-!General-Store.apk
 *.ap_          # згенеровані пакети
 *.dex
 *.class
