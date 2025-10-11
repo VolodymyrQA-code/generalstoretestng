@@ -61,12 +61,8 @@ jobs:
           profile: pixel
           script: |
             export CI=true
-            echo "Waiting for package manager service..."
-            for i in {1..60}; do
-              adb shell getprop sys.boot_completed >/dev/null 2>&1 && break
-              sleep 1
-            done
-            sleep 20
+            echo "Waiting for emulator to stabilize..."
+            sleep 30
             echo "Starting Appium..."
             appium --base-path /wd/hub > appium.log 2>&1 &
             APPIUM_PID=$!
