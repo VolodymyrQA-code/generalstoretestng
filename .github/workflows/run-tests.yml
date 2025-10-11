@@ -61,11 +61,7 @@ jobs:
           script: |
             echo "🕓 Waiting for emulator to boot..."
             adb wait-for-device
-            boot_completed=""
-            while [ "$boot_completed" != "1" ]; do
-              boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-              sleep 5
-            done
+            until [ "`adb shell getprop sys.boot_completed | tr -d '\r'`" = "1" ]; do sleep 5; done
             echo "✅ Emulator fully booted!"
 
             echo "🚀 Starting Appium..."
