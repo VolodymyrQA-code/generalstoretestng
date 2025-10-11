@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import java.net.URL;
 import java.time.Duration;
@@ -34,9 +33,17 @@ public class BasePage {
     @BeforeAll
     static void setup() {
         try {
+            // 🔧 Отримуємо шлях до APK з environment або з локального каталогу
+            String apkPath = System.getenv("APK_PATH");
+            if (apkPath == null || apkPath.isEmpty()) {
+                apkPath = System.getProperty("user.dir") + "/General-Store.apk";
+            }
+
+            System.out.println("📦 Using APK path: " + apkPath);
+
             UiAutomator2Options options = new UiAutomator2Options()
                     .setDeviceName("emulator-5554")
-                    .setApp(System.getProperty("user.dir") + "/General-Store.apk")
+                    .setApp(apkPath)  // ✅ Використовуємо динамічний шлях
                     .setAppPackage("com.androidsample.generalstore")
                     .setAppActivity("com.androidsample.generalstore.SplashActivity")
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2);
@@ -84,7 +91,7 @@ public class BasePage {
         }
     }
 
-    // ✅ Додай цей метод:
+    // ✅ Метод для доступу до драйвера
     public static AndroidDriver getDriver() {
         return driver;
     }
