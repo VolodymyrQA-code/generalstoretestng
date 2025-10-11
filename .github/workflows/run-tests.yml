@@ -9,18 +9,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Клонування репозиторію
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Встановлення JDK
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 3️⃣ Кешування Maven-залежностей
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -29,20 +26,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      # 4️⃣ Встановлення Node.js (для Appium 3)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.19.0
 
-      # 5️⃣ Встановлення Appium і драйверів
       - name: Install Appium and drivers
         run: |
           npm install -g appium@3.0.2
           appium driver install uiautomator2
           appium driver install xcuitest
 
-      # 6️⃣ Налаштування Android SDK
       - name: Set up Android SDK path
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
@@ -51,13 +45,11 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      # 7️⃣ Завантаження APK
       - name: Download APK
         run: |
           curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/raw/main/General-Store.apk
           ls -lh General-Store.apk
 
-      # 8️⃣ Запуск емулятора й тестів
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -66,28 +58,30 @@ jobs:
           arch: x86_64
           profile: pixel
           disable-animations: true
-          script: >
-            echo "🕓 Waiting for emulator to boot..." &&
-            adb wait-for-device &&
-            boot_completed="" &&
+          script: |
+            echo "🕓 Waiting for emulator to boot..."
+            adb wait-for-device
+            boot_completed=""
             while [ "$boot_completed" != "1" ]; do
-              boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r');
-              sleep 5;
-            done &&
-            echo "✅ Emulator fully booted!" &&
-            echo "🚀 Starting Appium..." &&
-            appium --base-path /wd/hub > appium.log 2>&1 & APPIUM_PID=$! &&
-            sleep 30 &&
-            echo "🧪 Running tests..." &&
-            mvn clean test -Dsurefire.useFile=false || true &&
-            echo "🛑 Killing Appium..." &&
+              boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+              sleep 5
+            done
+            echo "✅ Emulator fully booted!"
+
+            echo "🚀 Starting Appium..."
+            appium --base-path /wd/hub > appium.log 2>&1 &
+            APPIUM_PID=$!
+            sleep 30
+
+            echo "🧪 Running tests..."
+            mvn clean test -Dsurefire.useFile=false || true
+
+            echo "🛑 Killing Appium..."
             kill $APPIUM_PID || true
 
-      # 9️⃣ Генерація звіту Allure
       - name: Generate Allure report
         run: mvn allure:report
 
-      # 🔟 Завантаження звіту як артефакту
       - name: Upload Allure report artifact
         uses: actions/upload-artifact@v4
         with:
