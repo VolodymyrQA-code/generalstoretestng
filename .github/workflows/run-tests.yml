@@ -1,4 +1,4 @@
-name: Java UI Tests with Allure (Local APK)
+name: Android UI Tests with Allure
 
 on:
   push:
@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Клонування репозиторію
+      # 1️⃣ Клонування коду проєкту
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -20,7 +20,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 3️⃣ Кешування Maven-залежностей
+      # 3️⃣ Кешування Maven
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -29,18 +29,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      # 4️⃣ Встановлення Node.js для Appium
-      - name: Set up Node.js
+      # 4️⃣ Встановлення Node.js та Appium
+      - name: Set up Node.js & Appium
         uses: actions/setup-node@v4
         with:
           node-version: 22.19.0
-
-      # 5️⃣ Встановлення Appium 3 і драйверів
-      - name: Install Appium and drivers
-        run: |
+      - run: |
           npm install -g appium@3.0.2
           appium driver install uiautomator2
           appium driver install xcuitest
+
+      # 5️⃣ Завантаження APK із GitHub
+      - name: Download APK from GitHub
+        run: |
+          echo "📦 Downloading General-Store.apk from GitHub..."
+          curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/raw/main/General-Store.apk
+          echo "✅ APK downloaded:"
+          ls -lh General-Store.apk
 
       # 6️⃣ Налаштування Android SDK
       - name: Set up Android SDK path
@@ -51,24 +56,7 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      # 7️⃣ Копіювання локального APK у CI
-      - name: Copy local General-Store.apk into repo
-        run: |
-          echo "📦 Copying local APK from /Users/IUAR0044/generalstore/General-Store.apk ..."
-          LOCAL_APK_PATH="/Users/IUAR0044/generalstore/General-Store.apk"
-          TARGET_PATH="${GITHUB_WORKSPACE}/General-Store.apk"
-
-          if [ -f "$LOCAL_APK_PATH" ]; then
-            cp "$LOCAL_APK_PATH" "$TARGET_PATH"
-            echo "✅ Copied APK to workspace."
-          else
-            echo "❌ Local APK not found at $LOCAL_APK_PATH"
-            exit 1
-          fi
-
-          ls -lh "$TARGET_PATH"
-
-      # 8️⃣ Запуск емулятора і тестів
+      # 7️⃣ Запуск емулятора та тестів
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -91,14 +79,13 @@ jobs:
             echo "🧪 Running tests..."
             mvn clean test -Dsurefire.useFile=false || true
 
-            echo "🛑 Killing Appium..."
+            echo "🛑 Stopping Appium..."
             kill $APPIUM_PID || true
 
-      # 9️⃣ Генерація Allure-звіту
+      # 8️⃣ Звіт Allure
       - name: Generate Allure report
         run: mvn allure:report
 
-      # 🔟 Завантаження Allure-звіту
       - name: Upload Allure report artifact
         uses: actions/upload-artifact@v4
         with:
