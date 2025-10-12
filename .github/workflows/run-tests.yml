@@ -46,11 +46,9 @@ jobs:
         run: |
           echo "Downloading APK..."
           curl -L --max-redirs 5 -o General-Store.apk \
-            "https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/download/v1.0/General-Store.apk"
+            "https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/download/v1.0.0/General-Store.apk"
           ls -lh General-Store.apk
           file General-Store.apk
-          # Verify it's a valid ZIP
-          unzip -t General-Store.apk | head -5 || echo "Warning: ZIP check failed"
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
