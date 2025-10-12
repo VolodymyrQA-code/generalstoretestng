@@ -1,4 +1,4 @@
-name: Java UI Tests with Allure
+name: Android UI Tests with Allure
 
 on:
   push:
@@ -7,22 +7,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     steps:
       - name: 🧾 Checkout repository (with LFS)
         uses: actions/checkout@v4
         with:
           lfs: true
-          fetch-depth: 0
 
       - name: ☕ Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
           distribution: 'temurin'
+          java-version: '17'
 
-      - name: 📦 Cache Maven packages
+      - name: 📦 Cache Maven dependencies
         uses: actions/cache@v4
         with:
           path: ~/.m2
@@ -30,44 +28,30 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      - name: 🟢 Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.19.0
-
-      - name: ⚙️ Install Appium and drivers
+      - name: ⚙️ Install aapt and dependencies
         run: |
-          npm install -g appium@3.0.2
-          appium driver install uiautomator2
+          sudo apt-get update
+          sudo apt-get install -y android-sdk-build-tools imagemagick
 
-      - name: 🧰 Set up Android SDK path
+      - name: 📥 Download APK from GitHub Release
         run: |
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
-
-      - name: 📥 Download APK from Release
-        run: |
-          echo "⬇️ Downloading APK from release link..."
-          rm -f General-Store.apk
+          echo "⬇️ Downloading APK..."
           curl -L -o General-Store.apk \
             https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/download/v1.0.0/General-Store.apk
 
-          echo "🔍 Verifying file type..."
+          echo "🔍 Checking APK file info..."
           file General-Store.apk || true
           ls -lh General-Store.apk || true
 
-          echo "🧩 Checking if it’s a valid ZIP archive..."
-          if unzip -l General-Store.apk > /dev/null 2>&1; then
-            echo "✅ APK is a valid archive"
-          else
-            echo "❌ Invalid APK file!"
-            exit 1
-          fi
+          echo "🧩 Verifying as ZIP..."
+          unzip -l General-Store.apk >/dev/null && echo "✅ APK verified" || (echo "❌ Invalid APK!" && exit 1)
 
-      - name: ▶️ Start emulator and run UI tests
+      - name: 🔎 Extract Launchable Activity
+        run: |
+          echo "📦 Extracting launchable activity..."
+          aapt dump badging General-Store.apk | grep launchable-activity || echo "⚠️ Could not detect activity!"
+
+      - name: ▶️ Start emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
@@ -76,27 +60,35 @@ jobs:
           profile: pixel
           disable-animations: true
           script: |
-            echo "🕓 Waiting for emulator to boot..."
+            echo "🕓 Booting emulator..."
             adb wait-for-device
             until [ "`adb shell getprop sys.boot_completed | tr -d '\r'`" = "1" ]; do sleep 5; done
-            echo "✅ Emulator booted!"
+            echo "✅ Emulator booted"
 
-            echo "🚀 Starting Appium..."
-            appium --base-path /wd/hub > appium.log 2>&1 &
-            APPIUM_PID=$!
-            sleep 25
+            echo "📲 Installing APK..."
+            adb install -r General-Store.apk
 
-            echo "🧪 Running Maven tests..."
-            export APK_PATH=$PWD/General-Store.apk
-            mvn clean test -Dsurefire.useFile=false || true
+            echo "🚀 Launching app..."
+            adb shell monkey -p com.androidsample.generalstore 1
 
-            echo "🛑 Killing Appium..."
-            kill $APPIUM_PID || true
+            echo "📸 Taking screenshot..."
+            adb exec-out screencap -p > emulator_screen.png
 
-      - name: 📊 Generate Allure report
-        run: mvn allure:report || true
+      - name: 📤 Upload emulator screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-screen
+          path: emulator_screen.png
 
-      - name: 📤 Upload Allure report artifact
+      - name: 🧪 Run Maven tests
+        run: |
+          export APK_PATH=$PWD/General-Store.apk
+          mvn clean test -Dsurefire.useFile=false
+
+      - name: 📊 Generate Allure Report
+        run: mvn allure:report
+
+      - name: 📤 Upload Allure Report
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
