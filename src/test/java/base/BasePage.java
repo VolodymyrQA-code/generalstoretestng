@@ -44,28 +44,30 @@ public class BasePage {
                     .setDeviceName("emulator-5554")
                     .setApp(apkPath)
                     .setAppPackage("com.androidsample.generalstore")
-                    .setAppActivity("com.androidsample.generalstore.SplashActivity")
+                    .setAppActivity("com.androidsample.generalstore.MainActivity") // ✅ оновлено
+                    .setAppWaitActivity("com.androidsample.generalstore.*") // ✅ дозволяє чекати будь-яку активність у пакеті
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2);
 
             if (isCI()) {
-                // На CI потрібне більше часу
+                System.out.println("🏗️ Running in CI mode, increasing timeouts and stability options...");
                 options.setCapability("appium:ignoreHiddenApiPolicyError", true);
                 options.setCapability("adbExecTimeout", 1200000);
-                options.setCapability("uiautomator2ServerInstallTimeout", 120000);
-                options.setCapability("uiautomator2ServerLaunchTimeout", 180000); // 3 хвилини
-                options.setCapability("appWaitActivity", "com.androidsample.generalstore.MainActivity");
+                options.setCapability("uiautomator2ServerInstallTimeout", 180000);
+                options.setCapability("uiautomator2ServerLaunchTimeout", 180000);
                 options.setCapability("newCommandTimeout", 300);
-                options.setCapability("fullReset", true); // Не скидай app кожного разу
+                options.setCapability("fullReset", false); // ✅ не перевстановлюй кожного разу
                 options.setCapability("appium:clearDeviceLogsOnStart", true);
+                options.setCapability("autoGrantPermissions", true);
             } else {
                 options.setCapability("fullReset", false);
                 options.setCapability("newCommandTimeout", 300);
+                options.setCapability("autoGrantPermissions", true);
             }
 
-            // Затримка перед запуском на CI для стабільності
+            // Додаткова пауза на CI для стабільного запуску після емулятора
             if (isCI()) {
-                System.out.println("Waiting for app to stabilize...");
-                Thread.sleep(60000); // 15 секунд
+                System.out.println("⏳ Waiting for app to stabilize (CI delay)...");
+                Thread.sleep(20000); // 20 секунд
             }
 
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
@@ -73,12 +75,12 @@ public class BasePage {
             System.out.println("Connecting to Appium at: " + appiumUrl);
 
             driver = new AndroidDriver(new URL(appiumUrl), options);
-            
+
             // Більший timeout для CI
-            int waitSeconds = isCI() ? 30 : 15;
+            int waitSeconds = isCI() ? 40 : 20;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
-            
-            System.out.println("Driver initialized with " + waitSeconds + " second wait timeout");
+
+            System.out.println("✅ Driver initialized successfully with " + waitSeconds + "s wait timeout");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -90,10 +92,12 @@ public class BasePage {
     static void tearDown() {
         if (driver != null) {
             try {
+                System.out.println("🧹 Cleaning up: removing app...");
                 driver.removeApp("com.androidsample.generalstore");
             } catch (Exception e) {
-                System.out.println("Не вдалося видалити додаток: " + e.getMessage());
+                System.out.println("⚠️ Не вдалося видалити додаток: " + e.getMessage());
             } finally {
+                System.out.println("🔚 Quitting driver...");
                 driver.quit();
             }
         }
