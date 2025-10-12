@@ -55,7 +55,7 @@ public class BasePage {
                 options.setCapability("uiautomator2ServerLaunchTimeout", 180000); // 3 хвилини
                 options.setCapability("appWaitActivity", "com.androidsample.generalstore.MainActivity");
                 options.setCapability("newCommandTimeout", 300);
-                options.setCapability("fullReset", false); // Не скидай app кожного разу
+                options.setCapability("fullReset", true); // Не скидай app кожного разу
                 options.setCapability("appium:clearDeviceLogsOnStart", true);
             } else {
                 options.setCapability("fullReset", false);
@@ -65,7 +65,7 @@ public class BasePage {
             // Затримка перед запуском на CI для стабільності
             if (isCI()) {
                 System.out.println("Waiting for app to stabilize...");
-                Thread.sleep(15000); // 15 секунд
+                Thread.sleep(30000); // 15 секунд
             }
 
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
