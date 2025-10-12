@@ -62,12 +62,9 @@ jobs:
             export CI=true
             echo "🕓 Booting emulator..."
             adb wait-for-device
-            until [ "`adb shell getprop sys.boot_completed | tr -d '\r'`" = "1" ]; do
-              echo "Waiting for boot..."
-              sleep 5
-            done
-            adb shell input keyevent 82
-            echo "✅ Emulator ready!"
+            BOOT_STATUS=""
+            BOOT_STATUS=""; while [ "$BOOT_STATUS" != "1" ]; do BOOT_STATUS=$(adb shell getprop sys.boot_completed | tr -d '\r'); echo "Waiting for boot to complete..."; sleep 5; done; adb shell input keyevent 82; echo "✅ Emulator ready!"
+
 
             echo "📲 Installing APK..."
             adb install -r General-Store.apk || echo "⚠️ APK installation failed"
@@ -75,8 +72,11 @@ jobs:
             echo "📦 Verifying installation..."
             adb shell pm list packages | grep generalstore || echo "⚠️ APK not listed!"
 
+            echo "🚀 Launching app manually..."
+            adb shell monkey -p com.androidsample.generalstore -c android.intent.category.LAUNCHER 1
+
             echo "🧘 Waiting for emulator to stabilize..."
-            sleep 20
+            sleep 25
 
             echo "🚀 Starting Appium..."
             nohup appium --base-path /wd/hub > appium.log 2>&1 &
