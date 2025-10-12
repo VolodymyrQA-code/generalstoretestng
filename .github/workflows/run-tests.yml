@@ -1,4 +1,4 @@
-name: Java UI Tests with Allure
+name: Java UI Tests with Allur
 
 on:
   push:
