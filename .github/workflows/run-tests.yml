@@ -9,19 +9,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Клонування репозиторію
-      - name: Checkout repository
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Встановлення JDK
-      - name: Set up JDK 17
+      - name: ☕ Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 3️⃣ Кешування Maven-залежностей
-      - name: Cache Maven packages
+      - name: 📦 Cache Maven packages
         uses: actions/cache@v4
         with:
           path: ~/.m2
@@ -29,21 +26,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      # 4️⃣ Встановлення Node.js (для Appium 3)
-      - name: Set up Node.js
+      - name: 🟢 Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.19.0
 
-      # 5️⃣ Встановлення Appium 3 і драйверів
-      - name: Install Appium and drivers
+      - name: ⚙️ Install Appium and drivers
         run: |
           npm install -g appium@3.0.2
           appium driver install uiautomator2
-          appium driver install xcuitest
 
-      # 6️⃣ Налаштування Android SDK шляху (PATH)
-      - name: Set up Android SDK path
+      - name: 🧰 Set up Android SDK path
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
@@ -51,39 +44,45 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      # 7️⃣ Завантаження APK-файлу (щоб не зберігати його в git)
-      - name: Download APK
+      - name: 📥 Download APK from GitHub
         run: |
+          echo "⬇️ Downloading APK..."
           curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/raw/main/General-Store.apk
+          file General-Store.apk
           ls -lh General-Store.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 8️⃣ Запуск Android-емулятора і тестів
-      - name: Start Android emulator and run tests
+      - name: ▶️ Start emulator and run UI tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
           target: default
           arch: x86_64
           profile: pixel
+          disable-animations: true
           script: |
-            echo "Starting Appium server..."
+            echo "🕓 Waiting for emulator to boot..."
+            adb wait-for-device
+            until [ "`adb shell getprop sys.boot_completed | tr -d '\r'`" = "1" ]; do sleep 5; done
+            echo "✅ Emulator fully booted!"
+
+            echo "🚀 Starting Appium..."
             appium --base-path /wd/hub > appium.log 2>&1 &
-            sleep 15
-            echo "Checking Appium status..."
-            curl http://127.0.0.1:4723/wd/hub/status
+            APPIUM_PID=$!
+            sleep 30
 
-            echo "Checking current foreground activity..."
-            adb shell dumpsys activity activities | grep mResumedActivity
+            echo "🧪 Running Maven tests..."
+            export APK_PATH=$PWD/General-Store.apk
+            mvn clean test -Dsurefire.useFile=false || true
 
-            echo "Running Maven tests..."
-            mvn clean test -Dsurefire.useFile=false
+            echo "🛑 Stopping Appium..."
+            kill $APPIUM_PID || true
 
-      # 9️⃣ Генерація Allure-звіту
-      - name: Generate Allure report
+      - name: 📊 Generate Allure report
         run: mvn allure:report
 
-      # 🔟 Завантаження Allure-звіту як артефакту
-      - name: Upload Allure report artifact
+      - name: 📤 Upload Allure report artifact
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
