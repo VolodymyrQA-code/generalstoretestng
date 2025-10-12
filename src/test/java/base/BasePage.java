@@ -33,7 +33,6 @@ public class BasePage {
     @BeforeAll
     static void setup() {
         try {
-            // 🔧 Отримуємо шлях до APK з environment або з локального каталогу
             String apkPath = System.getenv("APK_PATH");
             if (apkPath == null || apkPath.isEmpty()) {
                 apkPath = System.getProperty("user.dir") + "/General-Store.apk";
@@ -43,26 +42,30 @@ public class BasePage {
 
             UiAutomator2Options options = new UiAutomator2Options()
                     .setDeviceName("emulator-5554")
-                    .setApp(apkPath)  // ✅ Використовуємо динамічний шлях
+                    .setApp(apkPath)
                     .setAppPackage("com.androidsample.generalstore")
                     .setAppActivity("com.androidsample.generalstore.SplashActivity")
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2);
 
             if (isCI()) {
+                // На CI потрібне більше часу
                 options.setCapability("appium:ignoreHiddenApiPolicyError", true);
                 options.setCapability("adbExecTimeout", 1200000);
                 options.setCapability("uiautomator2ServerInstallTimeout", 120000);
-                options.setCapability("uiautomator2ServerLaunchTimeout", 120000);
+                options.setCapability("uiautomator2ServerLaunchTimeout", 180000); // 3 хвилини
                 options.setCapability("appWaitActivity", "com.androidsample.generalstore.MainActivity");
                 options.setCapability("newCommandTimeout", 300);
-                options.setCapability("fullReset", true);
-                options.setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(180));
+                options.setCapability("fullReset", false); // Не скидай app кожного разу
+                options.setCapability("appium:clearDeviceLogsOnStart", true);
             } else {
-                options.setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(20));
+                options.setCapability("fullReset", false);
+                options.setCapability("newCommandTimeout", 300);
             }
 
+            // Затримка перед запуском на CI для стабільності
             if (isCI()) {
-                Thread.sleep(10000);
+                System.out.println("Waiting for app to stabilize...");
+                Thread.sleep(15000); // 15 секунд
             }
 
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
@@ -70,7 +73,12 @@ public class BasePage {
             System.out.println("Connecting to Appium at: " + appiumUrl);
 
             driver = new AndroidDriver(new URL(appiumUrl), options);
-            wait = new WebDriverWait(driver, Duration.ofSeconds(isCI() ? 30 : 15));
+            
+            // Більший timeout для CI
+            int waitSeconds = isCI() ? 30 : 15;
+            wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
+            
+            System.out.println("Driver initialized with " + waitSeconds + " second wait timeout");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -91,7 +99,6 @@ public class BasePage {
         }
     }
 
-    // ✅ Метод для доступу до драйвера
     public static AndroidDriver getDriver() {
         return driver;
     }

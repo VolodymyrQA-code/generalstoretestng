@@ -13,14 +13,17 @@ public class SplashPage {
     }
 
     public boolean isSplashDisplayed() {
+        boolean isCI = System.getenv("CI") != null && System.getenv("CI").equalsIgnoreCase("true");
+        long timeout = isCI ? 30000 : 15000;
+        
         boolean splashFound = false;
         long startTime = System.currentTimeMillis();
 
-        while (System.currentTimeMillis() - startTime < 10000) { // 10 сек
+        while (System.currentTimeMillis() - startTime < timeout) {
             List<WebElement> elements = driver.findElements(By.id("com.androidsample.generalstore:id/splashscreen"));
             if (!elements.isEmpty()) {
                 splashFound = true;
-                System.out.println("✅ Splash screen detected!");
+                System.out.println("Splash screen detected!");
                 break;
             }
             try {
