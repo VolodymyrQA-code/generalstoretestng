@@ -52,7 +52,7 @@ jobs:
           echo "⬇️ Downloading APK from GitHub Release..."
           rm -f General-Store.apk
 
-          curl -L -o General-Store.apk \
+          curl -L -J -O \
             https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/latest/download/General-Store.apk
 
           echo "🔍 Verifying file type..."
@@ -60,11 +60,8 @@ jobs:
           ls -lh General-Store.apk || true
 
           echo "🧩 Checking if it's a valid ZIP archive..."
-          if unzip -l General-Store.apk > /dev/null 2>&1; then
-            echo "✅ APK verified as ZIP archive"
-          else
-            echo "❌ Invalid APK file!"; exit 1
-          fi
+          unzip -l General-Store.apk > /dev/null && echo "✅ APK verified as ZIP archive" || (echo "❌ Invalid APK file!" && exit 1)
+
 
       - name: ▶️ Start emulator and run UI tests
         uses: reactivecircus/android-emulator-runner@v2
