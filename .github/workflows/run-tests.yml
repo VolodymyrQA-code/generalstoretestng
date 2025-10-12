@@ -57,41 +57,44 @@ jobs:
           target: default
           arch: x86_64
           profile: pixel
+          disable-animations: true
           script: |
             export CI=true
-            echo "Waiting for emulator and app to stabilize..."
-            sleep 60
-            echo "Starting Appium..."
-            appium --base-path /wd/hub > appium.log 2>&1 &
+            echo "🕓 Booting emulator..."
+            adb wait-for-device
+            until [ "`adb shell getprop sys.boot_completed | tr -d '\r'`" = "1" ]; do
+              echo "Waiting for boot..."
+              sleep 5
+            done
+            adb shell input keyevent 82
+            echo "✅ Emulator ready!"
+
+            echo "📲 Installing APK..."
+            adb install -r General-Store.apk || echo "⚠️ APK installation failed"
+
+            echo "📦 Verifying installation..."
+            adb shell pm list packages | grep generalstore || echo "⚠️ APK not listed!"
+
+            echo "🧘 Waiting for emulator to stabilize..."
+            sleep 20
+
+            echo "🚀 Starting Appium..."
+            nohup appium --base-path /wd/hub > appium.log 2>&1 &
             APPIUM_PID=$!
-            sleep 40
+            sleep 25
 
-            echo "Checking if app is running..."
-            adb shell pidof com.androidsample.generalstore || echo "App not found, installing..."
-      
-            echo "Checking if UI is responding..."
-            adb shell dumpsys window | grep "mCurrentFocus" || echo "UI may not be ready"
+            echo "🔍 Checking if UI is responding..."
+            adb shell dumpsys window | grep "mCurrentFocus" || echo "⚠️ UI may not be ready"
 
-            echo "Checking if app is running..."
-            adb shell pidof com.androidsample.generalstore || echo "⚠️  App NOT running"
-
-            echo "Checking app logs..."
-            adb logcat -d | grep -i "generalstore\|error\|crash" | tail -20
-
-            echo "Checking current focused window..."
-            adb shell dumpsys window | grep "mCurrentFocus"
-
-            echo "Listing installed packages..."
-            adb shell pm list packages | grep generalstore
-
-            echo "Getting app info..."
-            adb shell dumpsys package com.androidsample.generalstore | head -20 
-
-            echo "Running Maven tests..."
+            echo "🧪 Running Maven tests..."
             mvn clean test -Dsurefire.useFile=false || true
 
-            echo "Stopping Appium..."
+            echo "📋 Collecting app logs..."
+            adb logcat -d | grep -i "generalstore\|error\|crash" | tail -20 || true
+
+            echo "🧹 Stopping Appium..."
             kill $APPIUM_PID 2>/dev/null || true
+
 
       - name: Generate Allure report
         if: always()
