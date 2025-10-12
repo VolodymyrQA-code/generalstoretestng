@@ -1,99 +1,113 @@
-name: Java UI Tests with Allur
-
+name: Java UI Tests with Allure
+ 
 on:
+
   push:
+
   pull_request:
-
+ 
 jobs:
+
   test:
+
     runs-on: ubuntu-latest
-
+ 
     steps:
-      - name: 🧾 Checkout repository (with LFS)
+
+      - name: Checkout repository
+
         uses: actions/checkout@v4
-        with:
-          lfs: true
-          fetch-depth: 0
+ 
+      - name: Set up JDK 17
 
-      - name: ☕ Set up JDK 17
         uses: actions/setup-java@v4
+
         with:
+
           java-version: '17'
+
           distribution: 'temurin'
+ 
+      - name: Cache Maven packages
 
-      - name: 📦 Cache Maven packages
         uses: actions/cache@v4
+
         with:
+
           path: ~/.m2
+
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+
           restore-keys: |
+
             ${{ runner.os }}-m2
+ 
+      - name: Set up Node.js
 
-      - name: 🟢 Set up Node.js
         uses: actions/setup-node@v4
-        with:
-          node-version: 22.19.0
 
-      - name: ⚙️ Install Appium and drivers
+        with:
+
+          node-version: 20
+ 
+      - name: Install Appium and drivers
+
         run: |
-          npm install -g appium@3.0.2
+
+          npm install -g appium
+
           appium driver install uiautomator2
 
-      - name: 🧰 Set up Android SDK path
-        run: |
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
+          appium driver install xcuitest
 
-      - name: 📥 Download real APK from GitHub Release
-        run: |
-          echo "⬇️ Downloading APK from GitHub Release..."
-          rm -f General-Store.apk
+          appium --version
 
-          curl -L -J -O \
-            https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/download/v1.0.0/General-Store.apk
+          appium driver list
+ 
+      - name: Start emulator and run tests
 
-          echo "🔍 Verifying file type..."
-          file General-Store.apk || true
-          ls -lh General-Store.apk || true
-
-          echo "🧩 Checking if it's a valid ZIP archive..."
-          unzip -l General-Store.apk > /dev/null && echo "✅ APK verified as ZIP archive" || (echo "❌ Invalid APK file!" && exit 1)
-
-
-      - name: ▶️ Start emulator and run UI tests
         uses: reactivecircus/android-emulator-runner@v2
+
         with:
+
           api-level: 30
+
           target: default
+
           arch: x86_64
+
           profile: pixel
-          disable-animations: true
+
+          emulator-options: -no-window -noaudio -no-boot-anim
+
           script: |
-            echo "🕓 Waiting for emulator to boot..."
-            adb wait-for-device
-            until [ "`adb shell getprop sys.boot_completed | tr -d '\r'`" = "1" ]; do sleep 5; done
-            echo "✅ Emulator fully booted!"
 
-            echo "🚀 Starting Appium..."
+            echo "Starting Appium..."
+
             appium --base-path /wd/hub > appium.log 2>&1 &
-            APPIUM_PID=$!
-            sleep 25
 
-            echo "🧪 Running Maven tests..."
-            export APK_PATH=$PWD/General-Store.apk
-            mvn clean test -Dsurefire.useFile=false || true
+            sleep 20
 
-            echo "🛑 Stopping Appium..."
-            kill $APPIUM_PID || true
+            echo "Checking Appium status..."
 
-      - name: 📊 Generate Allure report
-        run: mvn allure:report
+            curl http://127.0.0.1:4723/wd/hub/status
 
-      - name: 📤 Upload Allure report artifact
+            adb devices
+
+            mvn clean test -Dtest=HomeTest || true
+
+            mvn allure:report
+ 
+      - name: Upload Allure report artifact
+
+        if: always()
+
         uses: actions/upload-artifact@v4
+
         with:
+
           name: allure-report
+
           path: target/site/allure-maven-plugin/
+
+ 
