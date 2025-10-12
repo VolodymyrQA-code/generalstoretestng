@@ -44,12 +44,14 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      - name: 📥 Download APK from GitHub
+      - name: 📥 Download APK from GitHub (raw content)
         run: |
           echo "⬇️ Downloading APK..."
-          curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/raw/main/General-Store.apk
+          curl -L -o General-Store.apk https://raw.githubusercontent.com/VolodymyrQA-code/Volodymyr-generalstore/main/General-Store.apk
+          echo "🔍 Verifying APK file..."
           file General-Store.apk
           ls -lh General-Store.apk
+          unzip -tq General-Store.apk || echo "⚠️ APK might be corrupted!"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
