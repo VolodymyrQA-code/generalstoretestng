@@ -1,113 +1,136 @@
 name: Java UI Tests with Allure
  
 on:
-
   push:
-
   pull_request:
  
 jobs:
-
   test:
-
     runs-on: ubuntu-latest
- 
     steps:
-
       - name: Checkout repository
-
         uses: actions/checkout@v4
  
       - name: Set up JDK 17
-
         uses: actions/setup-java@v4
-
         with:
-
           java-version: '17'
-
           distribution: 'temurin'
  
       - name: Cache Maven packages
-
         uses: actions/cache@v4
-
         with:
-
           path: ~/.m2
-
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-
           restore-keys: |
-
             ${{ runner.os }}-m2
  
       - name: Set up Node.js
-
         uses: actions/setup-node@v4
-
         with:
-
           node-version: 20
  
-      - name: Install Appium and drivers
-
+      - name: Install Appium 2.x and drivers
         run: |
-
-          npm install -g appium
-
+          npm install -g appium@latest
           appium driver install uiautomator2
-
-          appium driver install xcuitest
-
+          echo "Appium version:"
           appium --version
-
+          echo "Installed drivers:"
           appium driver list
  
+      - name: Enable KVM group permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+ 
       - name: Start emulator and run tests
-
         uses: reactivecircus/android-emulator-runner@v2
-
         with:
-
           api-level: 30
-
           target: default
-
           arch: x86_64
-
-          profile: pixel
-
-          emulator-options: -no-window -noaudio -no-boot-anim
-
+          profile: pixel_4
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
           script: |
+            # Wait for emulator to be ready
+            echo "Waiting for emulator to be ready..."
+            adb wait-for-device
+            adb shell input keyevent 82
 
-            echo "Starting Appium..."
+            while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
+              echo "Waiting for boot to complete..."
+              sleep 2
+            done
+            echo "Emulator boot completed!"
 
-            appium --base-path /wd/hub > appium.log 2>&1 &
+            echo "Device status:"
+            adb devices -l
 
-            sleep 20
+            echo "Starting Appium 2.x server..."
+            appium --log appium.log --log-level info --allow-insecure chromedriver_autodownload > appium-console.log 2>&1 &
+            APPIUM_PID=$!
+            echo "Appium PID: $APPIUM_PID"
 
-            echo "Checking Appium status..."
+            echo "Waiting for Appium to be ready..."
+            for i in {1..30}; do
+              if curl -s http://127.0.0.1:4723/status > /dev/null 2>&1; then
+                echo "Appium is ready!"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "Appium failed to start within 30 seconds"
+                echo "Console output:"
+                cat appium-console.log
+                exit 1
+              fi
+              echo "Attempt $i: Waiting for Appium..."
+              sleep 1
+            done
 
-            curl http://127.0.0.1:4723/wd/hub/status
+            echo "Appium status:"
+            curl -s http://127.0.0.1:4723/status
 
-            adb devices
+            echo "Running tests..."
+            mvn clean test -Dtest=HomeTest || TEST_EXIT_CODE=$?
 
-            mvn clean test -Dtest=HomeTest || true
+            if [ ! -z "$TEST_EXIT_CODE" ] && [ $TEST_EXIT_CODE -ne 0 ]; then
+              echo "Tests failed. Appium logs:"
+              cat appium.log
+            fi
 
+            echo "Generating Allure report..."
             mvn allure:report
- 
-      - name: Upload Allure report artifact
 
+            kill $APPIUM_PID || true
+
+            exit ${TEST_EXIT_CODE:-0}
+ 
+      - name: Upload Allure report
         if: always()
-
         uses: actions/upload-artifact@v4
-
         with:
-
           name: allure-report
-
           path: target/site/allure-maven-plugin/
-
+          retention-days: 30
  
+      - name: Upload Appium logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appium-logs
+          path: |
+            appium.log
+            appium-console.log
+          retention-days: 7
+ 
+      - name: Upload test screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-screenshots
+          path: target/screenshots/
+          if-no-files-found: ignore
+          retention-days: 7
