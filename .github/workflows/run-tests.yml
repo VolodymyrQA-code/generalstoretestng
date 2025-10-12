@@ -66,6 +66,12 @@ jobs:
             APPIUM_PID=$!
             sleep 40
 
+            echo "Checking if app is running..."
+            adb shell pidof com.androidsample.generalstore || echo "App not found, installing..."
+      
+            echo "Checking if UI is responding..."
+            adb shell dumpsys window | grep "mCurrentFocus" || echo "UI may not be ready"
+
             echo "Running Maven tests..."
             mvn clean test -Dsurefire.useFile=false || true
 
