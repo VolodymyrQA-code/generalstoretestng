@@ -1,95 +1,43 @@
-name: Android UI Tests with Allure
+name: Android UI Tests
 
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  ui-tests:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout repository (with LFS)
-        uses: actions/checkout@v4
-        with:
-          lfs: true
+      - uses: actions/checkout@v4
 
-      - name: ☕ Set up JDK 17
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: 📦 Cache Maven dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: ⚙️ Install aapt and dependencies
+      - name: Install Appium
         run: |
-          sudo apt-get update
-          sudo apt-get install -y android-sdk-build-tools imagemagick
+          npm install -g appium@latest
+          appium driver install uiautomator2
 
-      - name: 📥 Download APK from GitHub Release
+      - name: Start Appium Server
         run: |
-          echo "⬇️ Downloading APK..."
-          curl -L -o General-Store.apk \
-            https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/download/v1.0.0/General-Store.apk
+          nohup appium --base-path /wd/hub > appium.log 2>&1 &
 
-          echo "🔍 Checking APK file info..."
-          file General-Store.apk || true
-          ls -lh General-Store.apk || true
-
-          echo "🧩 Verifying as ZIP..."
-          unzip -l General-Store.apk >/dev/null && echo "✅ APK verified" || (echo "❌ Invalid APK!" && exit 1)
-
-      - name: 🔎 Extract Launchable Activity
+      - name: Create and start Android emulator
         run: |
-          echo "📦 Extracting launchable activity..."
-          aapt dump badging General-Store.apk | grep launchable-activity || echo "⚠️ Could not detect activity!"
+          echo "no" | avdmanager create avd -n test -k "system-images;android-30;google_apis;x86_64"
+          nohup emulator -avd test -no-snapshot -noaudio -no-window &
+          adb wait-for-device
+          adb shell input keyevent 82
 
-      - name: ▶️ Start emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          target: default
-          arch: x86_64
-          profile: pixel
-          disable-animations: true
-          script: |
-            echo "🕓 Booting emulator..."
-            adb wait-for-device
-            until [ "`adb shell getprop sys.boot_completed | tr -d '\r'`" = "1" ]; do sleep 5; done
-            echo "✅ Emulator booted"
-
-            echo "📲 Installing APK..."
-            adb install -r General-Store.apk
-
-            echo "🚀 Launching app..."
-            adb shell monkey -p com.androidsample.generalstore 1
-
-            echo "📸 Taking screenshot..."
-            adb exec-out screencap -p > emulator_screen.png
-
-      - name: 📤 Upload emulator screenshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: emulator-screen
-          path: emulator_screen.png
-
-      - name: 🧪 Run Maven tests
+      - name: Run Tests
+        env:
+          APK_PATH: ${{ github.workspace }}/General-Store.apk
         run: |
-          export APK_PATH=$PWD/General-Store.apk
           mvn clean test -Dsurefire.useFile=false
-
-      - name: 📊 Generate Allure Report
-        run: mvn allure:report
-
-      - name: 📤 Upload Allure Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-report
-          path: target/site/allure-maven-plugin/
