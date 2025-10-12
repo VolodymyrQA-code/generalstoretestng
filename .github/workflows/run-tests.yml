@@ -72,6 +72,21 @@ jobs:
             echo "Checking if UI is responding..."
             adb shell dumpsys window | grep "mCurrentFocus" || echo "UI may not be ready"
 
+            echo "Checking if app is running..."
+            adb shell pidof com.androidsample.generalstore || echo "⚠️  App NOT running"
+
+            echo "Checking app logs..."
+            adb logcat -d | grep -i "generalstore\|error\|crash" | tail -20
+
+            echo "Checking current focused window..."
+            adb shell dumpsys window | grep "mCurrentFocus"
+
+            echo "Listing installed packages..."
+            adb shell pm list packages | grep generalstore
+
+            echo "Getting app info..."
+            adb shell dumpsys package com.androidsample.generalstore | head -20 
+
             echo "Running Maven tests..."
             mvn clean test -Dsurefire.useFile=false || true
 
