@@ -9,8 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout repository
+      - name: 🧾 Checkout repository (with LFS)
         uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
 
       - name: ☕ Set up JDK 17
         uses: actions/setup-java@v4
@@ -44,13 +47,22 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      - name: 📥 Download APK from GitHub
+      - name: 📥 Download real APK from GitHub
         run: |
-          echo "⬇️ Downloading APK..."
-          curl -L -o General-Store.apk https://github.com/VolodymyrQA-code/Volodymyr-generalstore/raw/main/General-Store.apk
-          file General-Store.apk
-          ls -lh General-Store.apk
-          unzip -l General-Store.apk | head -n 10
+          echo "⬇️ Downloading APK from GitHub raw..."
+          rm -f General-Store.apk
+          curl -L -H "Accept: application/octet-stream" \
+            -o General-Store.apk \
+            https://raw.githubusercontent.com/VolodymyrQA-code/Volodymyr-generalstore/main/General-Store.apk
+
+          echo "🔍 Verifying file type..."
+          file General-Store.apk || true
+          ls -lh General-Store.apk || true
+
+          echo "🧩 Checking if it's a valid ZIP archive..."
+          unzip -l General-Store.apk > /dev/null && echo "✅ APK verified as ZIP archive" || (echo "❌ Invalid APK file!" && exit 1)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: ▶️ Start emulator and run UI tests
         uses: reactivecircus/android-emulator-runner@v2
