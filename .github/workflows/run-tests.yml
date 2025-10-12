@@ -47,22 +47,24 @@ jobs:
           echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
 
-      - name: 📥 Download real APK from GitHub
+      - name: 📥 Download real APK from GitHub Release
         run: |
-          echo "⬇️ Downloading APK from GitHub raw..."
+          echo "⬇️ Downloading APK from GitHub Release..."
           rm -f General-Store.apk
-          curl -L -H "Accept: application/octet-stream" \
-            -o General-Store.apk \
-            https://raw.githubusercontent.com/VolodymyrQA-code/Volodymyr-generalstore/main/General-Store.apk
+
+          curl -L -o General-Store.apk \
+            https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/latest/download/General-Store.apk
 
           echo "🔍 Verifying file type..."
           file General-Store.apk || true
           ls -lh General-Store.apk || true
 
           echo "🧩 Checking if it's a valid ZIP archive..."
-          unzip -l General-Store.apk > /dev/null && echo "✅ APK verified as ZIP archive" || (echo "❌ Invalid APK file!" && exit 1)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if unzip -l General-Store.apk > /dev/null 2>&1; then
+            echo "✅ APK verified as ZIP archive"
+          else
+            echo "❌ Invalid APK file!"; exit 1
+          fi
 
       - name: ▶️ Start emulator and run UI tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -81,7 +83,7 @@ jobs:
             echo "🚀 Starting Appium..."
             appium --base-path /wd/hub > appium.log 2>&1 &
             APPIUM_PID=$!
-            sleep 30
+            sleep 25
 
             echo "🧪 Running Maven tests..."
             export APK_PATH=$PWD/General-Store.apk
