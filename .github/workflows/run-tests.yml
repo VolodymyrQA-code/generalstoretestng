@@ -53,47 +53,43 @@ jobs:
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
-          target: default
-          arch: x86_64
-          profile: pixel
-          disable-animations: true
-          script: |
-            export CI=true
-            echo "🕓 Booting emulator..."
-            adb wait-for-device
-            BOOT_STATUS=""
-            BOOT_STATUS=""; while [ "$BOOT_STATUS" != "1" ]; do BOOT_STATUS=$(adb shell getprop sys.boot_completed | tr -d '\r'); echo "Waiting for boot to complete..."; sleep 5; done; adb shell input keyevent 82; echo "✅ Emulator ready!"
+         api-level: 30
+         target: default
+         arch: x86_64
+         profile: pixel
+         script: |
+          export CI=true
+          echo "🕓 Booting emulator..."
 
+          # Очікуємо поки емулятор завантажиться
+          while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
+            echo "Waiting for emulator to boot..."
+            sleep 5
+          done
+          adb shell input keyevent 82
+          echo "✅ Emulator ready!"
 
-            echo "📲 Installing APK..."
-            adb install -r General-Store.apk || echo "⚠️ APK installation failed"
+          # Перевіряємо доступність
+          adb devices
 
-            echo "📦 Verifying installation..."
-            adb shell pm list packages | grep generalstore || echo "⚠️ APK not listed!"
+          echo "📦 Installing APK..."
+          adb install -r ./General-Store.apk || echo "App already installed"
 
-            echo "🚀 Launching app manually..."
-            adb shell monkey -p com.androidsample.generalstore -c android.intent.category.LAUNCHER 1
+          echo "🚀 Launching app..."
+          adb shell am start -n com.androidsample.generalstore/.SplashActivity
+          sleep 10
+          adb shell dumpsys window windows | grep -E "mCurrentFocus|mFocusedApp"
 
-            echo "🧘 Waiting for emulator to stabilize..."
-            sleep 25
+          echo "📸 Emulator and app ready, starting Appium..."
+          appium --base-path /wd/hub > appium.log 2>&1 &
+          APPIUM_PID=$!
+          sleep 20
 
-            echo "🚀 Starting Appium..."
-            nohup appium --base-path /wd/hub > appium.log 2>&1 &
-            APPIUM_PID=$!
-            sleep 25
+          echo "🧪 Running Maven tests..."
+          mvn clean test -Dsurefire.useFile=false || true
 
-            echo "🔍 Checking if UI is responding..."
-            adb shell dumpsys window | grep "mCurrentFocus" || echo "⚠️ UI may not be ready"
-
-            echo "🧪 Running Maven tests..."
-            mvn clean test -Dsurefire.useFile=false || true
-
-            echo "📋 Collecting app logs..."
-            adb logcat -d | grep -i "generalstore\|error\|crash" | tail -20 || true
-
-            echo "🧹 Stopping Appium..."
-            kill $APPIUM_PID 2>/dev/null || true
+          echo "🧹 Stopping Appium..."
+          kill $APPIUM_PID 2>/dev/null || true
 
 
       - name: Generate Allure report
