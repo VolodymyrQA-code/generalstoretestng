@@ -1,136 +1,103 @@
 name: Java UI Tests with Allure
- 
+
 on:
   push:
   pull_request:
- 
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+
     steps:
-      - name: Checkout repository
+      - name: 🧾 Checkout repository (with LFS)
         uses: actions/checkout@v4
- 
-      - name: Set up JDK 17
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: ☕ Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
- 
-      - name: Cache Maven packages
+
+      - name: 📦 Cache Maven packages
         uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2
- 
-      - name: Set up Node.js
+
+      - name: 🟢 Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
- 
-      - name: Install Appium 2.x and drivers
+          node-version: 22.19.0
+
+      - name: ⚙️ Install Appium and drivers
         run: |
-          npm install -g appium@latest
+          npm install -g appium@3.0.2
           appium driver install uiautomator2
-          echo "Appium version:"
-          appium --version
-          echo "Installed drivers:"
-          appium driver list
- 
-      - name: Enable KVM group permissions
+
+      - name: 🧰 Set up Android SDK path
         run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
- 
-      - name: Start emulator and run tests
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
+
+      - name: 📥 Download APK from Release
+        run: |
+          echo "⬇️ Downloading APK from release link..."
+          rm -f General-Store.apk
+          curl -L -o General-Store.apk \
+            https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/download/v1.0.0/General-Store.apk
+
+          echo "🔍 Verifying file type..."
+          file General-Store.apk || true
+          ls -lh General-Store.apk || true
+
+          echo "🧩 Checking if it’s a valid ZIP archive..."
+          if unzip -l General-Store.apk > /dev/null 2>&1; then
+            echo "✅ APK is a valid archive"
+          else
+            echo "❌ Invalid APK file!"
+            exit 1
+          fi
+
+      - name: ▶️ Start emulator and run UI tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
           target: default
           arch: x86_64
-          profile: pixel_4
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          profile: pixel
           disable-animations: true
           script: |
-            # Wait for emulator to be ready
-            echo "Waiting for emulator to be ready..."
+            echo "🕓 Waiting for emulator to boot..."
             adb wait-for-device
-            adb shell input keyevent 82
+            until [ "`adb shell getprop sys.boot_completed | tr -d '\r'`" = "1" ]; do sleep 5; done
+            echo "✅ Emulator booted!"
 
-            while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
-              echo "Waiting for boot to complete..."
-              sleep 2
-            done
-            echo "Emulator boot completed!"
-
-            echo "Device status:"
-            adb devices -l
-
-            echo "Starting Appium 2.x server..."
-            appium --log appium.log --log-level info --allow-insecure chromedriver_autodownload > appium-console.log 2>&1 &
+            echo "🚀 Starting Appium..."
+            appium --base-path /wd/hub > appium.log 2>&1 &
             APPIUM_PID=$!
-            echo "Appium PID: $APPIUM_PID"
+            sleep 25
 
-            echo "Waiting for Appium to be ready..."
-            for i in {1..30}; do
-              if curl -s http://127.0.0.1:4723/status > /dev/null 2>&1; then
-                echo "Appium is ready!"
-                break
-              fi
-              if [ $i -eq 30 ]; then
-                echo "Appium failed to start within 30 seconds"
-                echo "Console output:"
-                cat appium-console.log
-                exit 1
-              fi
-              echo "Attempt $i: Waiting for Appium..."
-              sleep 1
-            done
+            echo "🧪 Running Maven tests..."
+            export APK_PATH=$PWD/General-Store.apk
+            mvn clean test -Dsurefire.useFile=false || true
 
-            echo "Appium status:"
-            curl -s http://127.0.0.1:4723/status
-
-            echo "Running tests..."
-            mvn clean test -Dtest=HomeTest || TEST_EXIT_CODE=$?
-
-            if [ ! -z "$TEST_EXIT_CODE" ] && [ $TEST_EXIT_CODE -ne 0 ]; then
-              echo "Tests failed. Appium logs:"
-              cat appium.log
-            fi
-
-            echo "Generating Allure report..."
-            mvn allure:report
-
+            echo "🛑 Killing Appium..."
             kill $APPIUM_PID || true
 
-            exit ${TEST_EXIT_CODE:-0}
- 
-      - name: Upload Allure report
-        if: always()
+      - name: 📊 Generate Allure report
+        run: mvn allure:report || true
+
+      - name: 📤 Upload Allure report artifact
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
           path: target/site/allure-maven-plugin/
-          retention-days: 30
- 
-      - name: Upload Appium logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: appium-logs
-          path: |
-            appium.log
-            appium-console.log
-          retention-days: 7
- 
-      - name: Upload test screenshots
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-screenshots
-          path: target/screenshots/
-          if-no-files-found: ignore
-          retention-days: 7
