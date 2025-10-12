@@ -14,7 +14,7 @@ public class SplashPage {
 
     public boolean isSplashDisplayed() {
         boolean isCI = System.getenv("CI") != null && System.getenv("CI").equalsIgnoreCase("true");
-        long timeout = isCI ? 30000 : 15000;
+        long timeout = isCI ? 60000 : 15000;
         
         boolean splashFound = false;
         long startTime = System.currentTimeMillis();

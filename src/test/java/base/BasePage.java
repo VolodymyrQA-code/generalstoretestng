@@ -65,7 +65,7 @@ public class BasePage {
             // Затримка перед запуском на CI для стабільності
             if (isCI()) {
                 System.out.println("Waiting for app to stabilize...");
-                Thread.sleep(30000); // 15 секунд
+                Thread.sleep(60000); // 15 секунд
             }
 
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
