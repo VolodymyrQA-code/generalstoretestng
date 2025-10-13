@@ -1,4 +1,4 @@
-name: Android CI CD
+name: Android CI
 
 on:
   push:
@@ -7,31 +7,16 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  android-tests:
     runs-on: macos-latest
-
     env:
-      CI: true
-      JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64
-      ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      JAVA_HOME: /Library/Java/JavaVirtualMachines/adoptopenjdk-17.jdk/Contents/Home
       APK_PATH: ${{ github.workspace }}/app/General-Store.apk
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
-
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
-        with:
-          api-level: 33
-          build-tools: 36.1.0
 
       - name: Verify APK exists
         run: |
@@ -41,46 +26,31 @@ jobs:
           fi
           echo "✅ APK found at $APK_PATH"
 
-      - name: Start emulator
-        run: |
-          echo "🕓 Booting emulator..."
-          $ANDROID_HOME/emulator/emulator -avd test -no-audio -no-window &
-          EMULATOR_PID=$!
-          timeout=300
-          counter=0
-          while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do
-            if [ $counter -ge $timeout ]; then
-              echo "❌ Timeout waiting for emulator to boot"
-              kill $EMULATOR_PID
-              exit 1
-            fi
-            echo "Waiting for emulator to boot... ($counter/$timeout)"
-            sleep 5
-            counter=$((counter + 5))
-          done
-          adb shell input keyevent 82
-          echo "✅ Emulator ready!"
+      - name: Start Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: true
+          emulator-options: "-no-window -no-audio -wipe-data"
+          script: |
+            echo "⏳ Emulator started"
 
-      - name: Start Appium server
+      - name: Start Appium
         run: |
-          echo "📸 Starting Appium server..."
+          npm install -g appium
           appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
           APPIUM_PID=$!
+          echo "Waiting for Appium to start..."
           for i in {1..30}; do
-            curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server ready" && break
-            echo "Waiting for Appium... attempt $i/30"
+            curl -s http://127.0.0.1:4723/wd/hub/status && break
             sleep 2
           done
 
       - name: Run Maven tests
         run: |
-          echo "🧪 Running tests..."
-          mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
-
-      - name: Stop Appium
-        run: |
-          [ -n "$APPIUM_PID" ] && kill $APPIUM_PID
-
-      - name: Stop emulator
-        run: |
-          [ -n "$EMULATOR_PID" ] && kill $EMULATOR_PID
+          mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+          TEST_EXIT_CODE=$?
+          kill $APPIUM_PID
+          exit $TEST_EXIT_CODE
