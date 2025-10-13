@@ -52,8 +52,8 @@ jobs:
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
       - name: Move APK to tmp for Appium
-        run: echo "📦 Checking for General-Store.apk..." && [ -f "$PWD/General-Store.apk" ] && echo "✅ Found APK" && cp "$PWD/General-Store.apk" "/tmp/General-Store.apk" && chmod 644 "/tmp/General-Store.apk" && echo "APK_PATH=/tmp/General-Store.apk" >> $GITHUB_ENV || (echo "❌ APK not found" && exit 1)
-
+        run: |
+          [ -f "$PWD/General-Store.apk" ] && echo "✅ Found APK" && cp "$PWD/General-Store.apk" "/tmp/General-Store.apk" && chmod 644 "/tmp/General-Store.apk" && echo "APK_PATH=/tmp/General-Store.apk" >> $GITHUB_ENV || (echo "❌ APK not found" && exit 1)
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -63,21 +63,59 @@ jobs:
           arch: x86_64
           profile: pixel
           disable-animations: true
-          script: 
-            bash -c 'set -e; export CI=true; echo "🕓 Booting emulator..."; timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done; adb shell input keyevent 82; echo "✅ Emulator ready!"; adb devices; echo "📸 Starting Appium server..."; appium --base-path /wd/hub --log-level info > appium.log 2>&1 & APPIUM_PID=$!; echo "Waiting for Appium to start..."; for i in {1..30}; do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done; echo "🧪 Running Maven tests..."; mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?; echo "🧹 Stopping Appium..."; [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true; [ -f appium.log ] && echo "📋 Appium logs (last 50 lines):" && tail -50 appium.log; if [ -d "target/allure-results" ]; then echo "✅ Test results found in target/allure-results" && ls -la target/allure-results/; else echo "⚠️ No test results found in target/allure-results" && mkdir -p target/allure-results && echo "{}" > target/allure-results/dummy.json; fi; exit ${TEST_EXIT_CODE:-0}'
-            timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done
+          script: |
+            set -e
+            export CI=true
+            echo "🕓 Booting emulator..."
+
+            # Очікування завантаження емулятора
+            timeout=300
+            counter=0
+            while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do
+              [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1
+              echo "Waiting for emulator to boot... ($counter/$timeout)"
+              sleep 5
+              counter=$((counter + 5))
+            done
+
             adb shell input keyevent 82
             echo "✅ Emulator ready!"
             adb devices
+
+            # Запуск Appium
             echo "📸 Starting Appium server..."
-            appium --base-path /wd/hub --log-level info > appium.log 2>&1 & APPIUM_PID=$!
-            echo "Waiting for Appium to start..."; for i in {1..30}; do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done
-            echo "🧪 Running Maven tests..."; mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
-            echo "🧹 Stopping Appium..."; [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true; [ -f appium.log ] && echo "📋 Appium logs (last 50 lines):" && tail -50 appium.log; if [ -d "target/allure-results" ]; then echo "✅ Test results found in target/allure-results" && ls -la target/allure-results/; else echo "⚠️ No test results found in target/allure-results" && mkdir -p target/allure-results && echo "{}" > target/allure-results/dummy.json; fi; exit ${TEST_EXIT_CODE:-0}'
+            appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
+            APPIUM_PID=$!
+
+            echo "Waiting for Appium to start..."
+            for i in {1..30}; do
+              curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break
+              echo "Waiting for Appium... attempt $i/30"
+              sleep 2
+            done
+
+            # Запуск тестів
+            echo "🧪 Running Maven tests..."
+            mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
+
+            # Зупинка Appium і логи
+            echo "🧹 Stopping Appium..."
+            [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true
+            [ -f appium.log ] && echo "📋 Appium logs (last 50 lines):" && tail -50 appium.log
+
+            # Перевірка результатів
+            if [ -d "target/allure-results" ]; then
+              echo "✅ Test results found in target/allure-results" && ls -la target/allure-results/
+            else
+              echo "⚠️ No test results found in target/allure-results" && mkdir -p target/allure-results && echo "{}" > target/allure-results/dummy.json
+            fi
+
+            exit ${TEST_EXIT_CODE:-0}
 
       - name: Generate Allure report
         if: always()
-        run: if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then echo "📊 Generating Allure report..." && rm -rf target/site/allure-maven-plugin || true && mvn -B allure:report; else echo "⚠️ No test results to generate report from" && mkdir -p target/site/allure-maven-plugin && echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html; fi
+        run: |
+          [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ] && echo "📊 Generating Allure report..." && rm -rf target/site/allure-maven-plugin || true && mvn -B allure:report || (echo "⚠️ No test results to generate report from" && mkdir -p target/site/allure-maven-plugin && echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html)
 
       - name: Upload Allure report
         if: always()
