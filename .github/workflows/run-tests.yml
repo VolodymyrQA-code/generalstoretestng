@@ -45,12 +45,13 @@ jobs:
           npm install -g appium@3.0.2
           appium driver install uiautomator2
 
-      - name: Check APK
+      - name: Check local APK
         run: |
           APK_PATH="$GITHUB_WORKSPACE/app/General-Store.apk"
           if [ ! -f "$APK_PATH" ]; then echo "❌ APK not found at $APK_PATH"; exit 1; fi
           echo "✅ APK found at $APK_PATH"
-          echo "Verifying APK..."
+          echo "Verifying APK format..."
+          file "$APK_PATH"
           unzip -t "$APK_PATH" || (echo "❌ APK is corrupted"; exit 1)
 
       - name: Start Android emulator and run tests
