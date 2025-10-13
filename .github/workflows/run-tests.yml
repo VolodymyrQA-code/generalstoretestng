@@ -74,18 +74,9 @@ jobs:
             # Перевіряємо пристрої
             adb devices
   
-            # Встановлюємо APK
-            echo "📦 Installing APK..."; adb install -r ./General-Store.apk || { echo "Failed to install APK, trying to uninstall first..."; adb uninstall com.androidsample.generalstore || true; adb install -r ./General-Store.apk; }
-
-            # Запускаємо додаток
-            echo "🚀 Launching app..."
-            adb shell am start -n com.androidsample.generalstore/.SplashActivity
-            sleep 10
-  
-            # Перевіряємо стан додатку
-            echo "📱 App status:"
-            adb shell dumpsys window windows | grep -E "mCurrentFocus|mFocusedApp" || true
-  
+           
+            
+            
             # Запускаємо Appium сервер
             echo "📸 Starting Appium server..."
             appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
