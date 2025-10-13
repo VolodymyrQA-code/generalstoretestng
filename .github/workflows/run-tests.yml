@@ -2,20 +2,22 @@ name: Android CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
   android-tests:
     runs-on: macos-latest
+
     env:
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      JAVA_HOME: /Library/Java/JavaVirtualMachines/adoptopenjdk-17.jdk/Contents/Home
+      JAVA_HOME: /Users/runner/Library/Java/JavaVirtualMachines/adoptopenjdk-17.jdk/Contents/Home
+      ANDROID_SDK_ROOT: /Users/runner/Library/Android/sdk
       APK_PATH: ${{ github.workspace }}/app/General-Store.apk
+      CI: true
 
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Verify APK exists
@@ -26,31 +28,24 @@ jobs:
           fi
           echo "✅ APK found at $APK_PATH"
 
-      - name: Start Android Emulator
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          sdk-version: "33"       # змінити під потрібну версію
+          target: "android-33"
+          arch: "x86_64"
+
+      - name: Create and start emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
           target: google_apis
           arch: x86_64
+          emulator-name: ci-emulator
           force-avd-creation: true
-          emulator-options: "-no-window -no-audio -wipe-data"
+          disable-animations: true
           script: |
-            echo "⏳ Emulator started"
-
-      - name: Start Appium
-        run: |
-          npm install -g appium
-          appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
-          APPIUM_PID=$!
-          echo "Waiting for Appium to start..."
-          for i in {1..30}; do
-            curl -s http://127.0.0.1:4723/wd/hub/status && break
-            sleep 2
-          done
-
-      - name: Run Maven tests
-        run: |
-          mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
-          TEST_EXIT_CODE=$?
-          kill $APPIUM_PID
-          exit $TEST_EXIT_CODE
+            echo "⏳ Waiting 10 seconds for emulator to stabilize..."
+            sleep 10
+            echo "🌐 Starting Maven tests..."
+            mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
