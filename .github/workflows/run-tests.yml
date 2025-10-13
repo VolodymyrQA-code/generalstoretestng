@@ -51,10 +51,8 @@ jobs:
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
-      - name: Move APK to root for Appium access
-        run: echo "📦 Checking for General-Store.apk..." && if [ -f "$PWD/General-Store.apk" ]; then echo "✅ Found APK in repository"; cp "$PWD/General-Store.apk" "$GITHUB_WORKSPACE/General-Store.apk"; echo "APK_PATH=$GITHUB_WORKSPACE/General-Store.apk" >> $GITHUB_ENV; else echo "❌ APK not found in repo"; exit 1; fi
-
-
+      - name: Ensure APK is available
+        run: echo "📦 Checking for General-Store.apk..." && if [ -f "$PWD/General-Store.apk" ]; then echo "✅ Found APK in repository"; echo "APK_PATH=$PWD/General-Store.apk" >> $GITHUB_ENV; else echo "❌ APK not found in repo"; exit 1; fi
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -113,7 +111,6 @@ jobs:
       - name: Generate Allure report
         if: always()
         run: |
-          # Перевіряємо наявність результатів перед генерацією звіту
           if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then echo "📊 Generating Allure report..."; rm -rf target/site/allure-maven-plugin || true; mvn -B allure:report; else echo "⚠️ No test results to generate report from"; mkdir -p target/site/allure-maven-plugin; echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html; fi
 
       - name: Upload Allure report
