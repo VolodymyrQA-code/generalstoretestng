@@ -63,17 +63,8 @@ jobs:
             echo "🕓 Booting emulator..."
             
             # Очікуємо завершення завантаження емулятора
-            timeout=300
-            counter=0
-            while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do
-              if [ $counter -ge $timeout ]; then
-                echo "❌ Timeout waiting for emulator to boot"
-                exit 1
-              fi
-              echo "Waiting for emulator to boot... ($counter/$timeout)"
-              sleep 5
-              counter=$((counter + 5))
-            done
+            timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do if [ $counter -ge $timeout ]; then echo "❌ Timeout waiting for emulator to boot"; exit 1; fi; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done
+
             
             # Розблокувати екран
             adb shell input keyevent 82
