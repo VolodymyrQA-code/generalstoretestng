@@ -104,10 +104,8 @@ jobs:
  
             # Запускаємо тести
             echo "🧪 Running Maven tests..."
-            mvn -B clean test \
-            -Dsurefire.useFile=false \
-            -Dallure.results.directory=target/allure-results \
-            || TEST_EXIT_CODE=$?
+            mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
+
   
             # Зупиняємо Appium
             echo "🧹 Stopping Appium..."; if [ -n "$APPIUM_PID" ]; then kill $APPIUM_PID 2>/dev/null || true; fi
