@@ -1,51 +1,82 @@
-name: Android CI
+name: Android UI Tests with Allure
 
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
-  android-tests:
-    runs-on: macos-latest
-
-    env:
-      JAVA_HOME: /Users/runner/Library/Java/JavaVirtualMachines/adoptopenjdk-17.jdk/Contents/Home
-      ANDROID_SDK_ROOT: /Users/runner/Library/Android/sdk
-      APK_PATH: ${{ github.workspace }}/app/General-Store.apk
-      CI: true
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Verify APK exists
-        run: |
-          if [ ! -f "$APK_PATH" ]; then
-            echo "❌ APK not found at $APK_PATH"
-            exit 1
-          fi
-          echo "✅ APK found at $APK_PATH"
+        run: APK_PATH="$GITHUB_WORKSPACE/app/General-Store.apk"; if [ ! -f "$APK_PATH" ]; then echo "❌ APK not found at $APK_PATH"; exit 1; fi; echo "✅ APK found at $APK_PATH"; echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          sdk-version: "33"       # змінити під потрібну версію
-          target: "android-33"
-          arch: "x86_64"
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: Create and start emulator
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2
+
+      - name: Cache npm packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+
+      - name: Install Appium
+        run: npm install -g appium@3.0.2; appium driver install uiautomator2
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 33
-          target: google_apis
+          api-level: 30
+          target: default
           arch: x86_64
-          emulator-name: ci-emulator
-          force-avd-creation: true
+          profile: pixel
           disable-animations: true
-          script: |
-            echo "⏳ Waiting 10 seconds for emulator to stabilize..."
-            sleep 10
-            echo "🌐 Starting Maven tests..."
-            mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+          script: set -e; export CI=true; echo "🕓 Booting emulator..."; timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done; adb shell input keyevent 82; echo "✅ Emulator ready!"; adb devices; echo "📸 Starting Appium server..."; appium --base-path /wd/hub --log-level info > appium.log 2>&1 & APPIUM_PID=$!; echo "Waiting for Appium to start..."; for i in {1..30}; do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done; echo "🧪 Running Maven tests..."; mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?; echo "🧹 Stopping Appium..."; [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true; if [ -f appium.log ]; then echo "📋 Appium logs (last 50 lines):"; tail -50 appium.log; fi; if [ -d "target/allure-results" ]; then echo "✅ Test results found in target/allure-results"; ls -la target/allure-results/; else echo "⚠️ No test results found in target/allure-results"; mkdir -p target/allure-results; echo '{}' > target/allure-results/dummy.json; fi; exit ${TEST_EXIT_CODE:-0}
+
+      - name: Generate Allure report
+        if: always()
+        run: if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then echo "📊 Generating Allure report..."; rm -rf target/site/allure-maven-plugin || true; mvn -B allure:report; else echo "⚠️ No test results to generate report from"; mkdir -p target/site/allure-maven-plugin; echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html; fi
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: target/site/allure-maven-plugin/
+          if-no-files-found: warn
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            appium.log
+            target/surefire-reports/
+          if-no-files-found: ignore
