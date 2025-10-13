@@ -51,8 +51,18 @@ jobs:
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
-      - name: Ensure APK is available
-        run: echo "📦 Checking for General-Store.apk..." && if [ -f "$PWD/General-Store.apk" ]; then echo "✅ Found APK in repository"; echo "APK_PATH=$PWD/General-Store.apk" >> $GITHUB_ENV; else echo "❌ APK not found in repo"; exit 1; fi
+      - name: Move APK to tmp for Appium
+        run: |
+          echo "📦 Checking for General-Store.apk..."
+          if [ -f "$PWD/General-Store.apk" ]; then
+            echo "✅ Found APK"
+            cp "$PWD/General-Store.apk" "/tmp/General-Store.apk"
+            chmod 644 "/tmp/General-Store.apk"
+            echo "APK_PATH=/tmp/General-Store.apk" >> $GITHUB_ENV
+          else
+            echo "❌ APK not found"
+            exit 1
+          fi
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -67,51 +77,69 @@ jobs:
             export CI=true
             echo "🕓 Booting emulator..."
   
-            # Очікуємо завершення завантаження емулятора
-            timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do if [ $counter -ge $timeout ]; then echo "❌ Timeout waiting for emulator to boot"; exit 1; fi; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done
+            timeout=300; counter=0
+            while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do
+              if [ $counter -ge $timeout ]; then
+                echo "❌ Timeout waiting for emulator to boot"
+                exit 1
+              fi
+              echo "Waiting for emulator to boot... ($counter/$timeout)"
+              sleep 5
+              counter=$((counter + 5))
+            done
 
-            # Розблокувати екран
             adb shell input keyevent 82
             echo "✅ Emulator ready!"
-  
-            # Перевіряємо пристрої
             adb devices
 
-            echo "Cleaning Appium cache and temp folders..."
-            rm -rf /tmp/appium* || true
-            rm -rf ~/.cache/appium || true
-            rm -rf /home/runner/work/*/*/*.apk || true
-            rm -rf /home/runner/work/*/*/appium_logs || true
-            
-            # Запускаємо Appium сервер
             echo "📸 Starting Appium server..."
             appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
             APPIUM_PID=$!
-  
-            # Очікуємо запуск Appium
-            echo "Waiting for Appium to start..."; for i in {1..30}; do if curl -s http://localhost:4723/wd/hub/status > /dev/null; then echo "✅ Appium server is ready!"; break; fi; echo "Waiting for Appium... attempt $i/30"; sleep 2; done
- 
-            # Запускаємо тести
+
+            echo "Waiting for Appium to start..."
+            for i in {1..30}; do
+              if curl -s http://localhost:4723/wd/hub/status > /dev/null; then
+                echo "✅ Appium server is ready!"
+                break
+              fi
+              echo "Waiting for Appium... attempt $i/30"
+              sleep 2
+            done
+
             echo "🧪 Running Maven tests..."
             mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
 
-  
-            # Зупиняємо Appium
-            echo "🧹 Stopping Appium..."; if [ -n "$APPIUM_PID" ]; then kill $APPIUM_PID 2>/dev/null || true; fi
+            echo "🧹 Stopping Appium..."
+            if [ -n "$APPIUM_PID" ]; then kill $APPIUM_PID 2>/dev/null || true; fi
 
-            # Виводимо логи Appium для діагностики
-            if [ -f appium.log ]; then echo "📋 Appium logs (last 50 lines):"; tail -50 appium.log; fi
+            if [ -f appium.log ]; then
+              echo "📋 Appium logs (last 50 lines):"
+              tail -50 appium.log
+            fi
 
-            # Перевіряємо наявність результатів
-            if [ -d "target/allure-results" ]; then echo "✅ Test results found in target/allure-results"; ls -la target/allure-results/; else echo "⚠️ No test results found in target/allure-results"; mkdir -p target/allure-results; echo '{}' > target/allure-results/dummy.json; fi
+            if [ -d "target/allure-results" ]; then
+              echo "✅ Test results found in target/allure-results"
+              ls -la target/allure-results/
+            else
+              echo "⚠️ No test results found in target/allure-results"
+              mkdir -p target/allure-results
+              echo '{}' > target/allure-results/dummy.json
+            fi
 
-            # Повертаємо код виходу тестів
             exit ${TEST_EXIT_CODE:-0}
 
       - name: Generate Allure report
         if: always()
         run: |
-          if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then echo "📊 Generating Allure report..."; rm -rf target/site/allure-maven-plugin || true; mvn -B allure:report; else echo "⚠️ No test results to generate report from"; mkdir -p target/site/allure-maven-plugin; echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html; fi
+          if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then
+            echo "📊 Generating Allure report..."
+            rm -rf target/site/allure-maven-plugin || true
+            mvn -B allure:report
+          else
+            echo "⚠️ No test results to generate report from"
+            mkdir -p target/site/allure-maven-plugin
+            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html
+          fi
 
       - name: Upload Allure report
         if: always()
