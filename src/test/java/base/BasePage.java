@@ -43,7 +43,6 @@ public class BasePage {
                     .setAppWaitActivity("com.androidsample.generalstore.*")
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
                     .eventTimings();
-
             // ✅ CI-specific tuning
             if (isCI()) {
                 System.out.println("🏗️ Running in CI mode: applying stability and timeouts...");
@@ -63,7 +62,7 @@ public class BasePage {
 
             // ⏳ Pause to allow emulator & app to stabilize
             if (isCI()) {
-                System.out.println("⏳ Waiting for app to stabilize (CI delay 25s)...");
+                System.out.println("⏳ Waiting for app to stabilize (CI delay 5s)...");
                 Thread.sleep(5000);
             }
 
