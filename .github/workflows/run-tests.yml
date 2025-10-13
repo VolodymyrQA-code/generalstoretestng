@@ -51,14 +51,6 @@ jobs:
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
-      - name: Download APK from GitHub Releases
-        run: |
-          echo "Downloading APK..."
-          curl -L --max-redirs 5 -o General-Store.apk \
-            "https://github.com/VolodymyrQA-code/Volodymyr-generalstore/releases/download/v1.0.0/General-Store.apk"
-          ls -lh General-Store.apk
-          file General-Store.apk
-
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
