@@ -13,7 +13,7 @@ public class SplashPage {
     private AndroidDriver driver;
 
     // Ресурс-id splash-екрану, перевір через Appium Inspector
-    private static final String SPLASH_ID = "com.androidsample.generalstore:id/action_bar_root";
+    private static final String SPLASH_ID = "com.androidsample.generalstore:id/splashscreen";
 
 
     public SplashPage(AndroidDriver driver) {
@@ -27,24 +27,30 @@ public class SplashPage {
      * @return true, якщо splash-екран видно, false інакше
      */
     public boolean isSplashDisplayed() {
-        boolean isCI = System.getenv("CI") != null && System.getenv("CI").equalsIgnoreCase("true");
-        long timeoutSeconds = isCI ? 60 : 15;
+    boolean isCI = System.getenv("CI") != null && System.getenv("CI").equalsIgnoreCase("true");
+    long timeoutSeconds = isCI ? 90 : 15;
 
-        try {
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
-            WebElement splash = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id(SPLASH_ID)));
+    try {
+        // Чекаємо на старт SplashActivity
+        WebDriverWait activityWait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+        activityWait.until(d -> driver.currentActivity().contains("SplashActivity"));
 
-            System.out.println("✅ Splash screen detected!");
-            return splash.isDisplayed();
+        // Чекаємо появу splash елемента
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+        WebElement splash = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id(SPLASH_ID)));
 
-        } catch (TimeoutException e) {
-            System.out.println("⚠️ Splash screen not found after " + timeoutSeconds + " seconds");
-            System.out.println("🔍 Current activity: " + driver.currentActivity());
-            System.out.println("📄 Page source snippet: " + driver.getPageSource().substring(0, Math.min(500, driver.getPageSource().length())) + "...");
-            return false;
-        } catch (Exception e) {
-            System.out.println("❌ Unexpected error while checking splash: " + e.getMessage());
-            return false;
-        }
+        System.out.println("✅ Splash screen detected!");
+        return splash.isDisplayed();
+
+    } catch (TimeoutException e) {
+        System.out.println("⚠️ Splash screen not found after " + timeoutSeconds + " seconds");
+        System.out.println("🔍 Current activity: " + driver.currentActivity());
+        System.out.println("📄 Page source snippet: " + driver.getPageSource().substring(0, Math.min(500, driver.getPageSource().length())) + "...");
+        return false;
+    } catch (Exception e) {
+        System.out.println("❌ Unexpected error while checking splash: " + e.getMessage());
+        return false;
     }
+}
+
 }
