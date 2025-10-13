@@ -64,7 +64,7 @@ public class BasePage {
             // ⏳ Pause to allow emulator & app to stabilize
             if (isCI()) {
                 System.out.println("⏳ Waiting for app to stabilize (CI delay 25s)...");
-                Thread.sleep(25000);
+                Thread.sleep(5000);
             }
 
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";

@@ -73,9 +73,12 @@ jobs:
   
             # Перевіряємо пристрої
             adb devices
-  
-           
-            
+
+            echo "Cleaning Appium cache and temp folders..."
+            rm -rf /tmp/appium* || true
+            rm -rf ~/.cache/appium || true
+            rm -rf /home/runner/work/*/*/*.apk || true
+            rm -rf /home/runner/work/*/*/appium_logs || true
             
             # Запускаємо Appium сервер
             echo "📸 Starting Appium server..."
