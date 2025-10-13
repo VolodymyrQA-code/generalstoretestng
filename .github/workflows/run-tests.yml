@@ -52,16 +52,8 @@ jobs:
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
       - name: Move APK to root for Appium access
-        run: |
-          echo "📦 Checking for General-Store.apk..."
-          if [ -f "$PWD/General-Store.apk" ]; then
-            echo "✅ Found APK in repository"
-            cp "$PWD/General-Store.apk" "/home/runner/work/${{ github.repository }}/General-Store.apk"
-            echo "APK_PATH=/home/runner/work/${{ github.repository }}/General-Store.apk" >> $GITHUB_ENV
-          else
-            echo "❌ APK not found in repo"
-            exit 1
-          fi
+        run: echo "📦 Checking for General-Store.apk..." && if [ -f "$PWD/General-Store.apk" ]; then echo "✅ Found APK in repository"; cp "$PWD/General-Store.apk" "$GITHUB_WORKSPACE/General-Store.apk"; echo "APK_PATH=$GITHUB_WORKSPACE/General-Store.apk" >> $GITHUB_ENV; else echo "❌ APK not found in repo"; exit 1; fi
+
 
 
       - name: Start Android emulator and run tests
