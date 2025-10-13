@@ -10,8 +10,16 @@ jobs:
     timeout-minutes: 40
 
     steps:
+      - name: Install Git LFS
+        run: |
+          sudo apt-get update
+          sudo apt-get install git-lfs
+          git lfs install
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -45,7 +53,7 @@ jobs:
           npm install -g appium@3.0.2
           appium driver install uiautomator2
 
-      - name: Check local APK
+      - name: Check APK
         run: |
           APK_PATH="$GITHUB_WORKSPACE/app/General-Store.apk"
           if [ ! -f "$APK_PATH" ]; then echo "❌ APK not found at $APK_PATH"; exit 1; fi
