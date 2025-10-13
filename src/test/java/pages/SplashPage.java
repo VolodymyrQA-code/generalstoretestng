@@ -13,7 +13,8 @@ public class SplashPage {
     private AndroidDriver driver;
 
     // Ресурс-id splash-екрану, перевір через Appium Inspector
-    private static final String SPLASH_ID = "com.androidsample.generalstore:id/splashscreen";
+    private static final String SPLASH_ID = "com.androidsample.generalstore:id/action_bar_root";
+
 
     public SplashPage(AndroidDriver driver) {
         this.driver = driver;
