@@ -28,17 +28,9 @@ public class BasePage {
     @BeforeAll
     static void setup() {
         try {
-            String apkPath;
-
-            if (isCI()) {
-                // 🧪 На CI (GitHub Actions)
-                apkPath = System.getenv("APK_PATH");
-                if (apkPath == null || apkPath.isEmpty()) {
-                    apkPath = System.getProperty("user.dir") + "/General-Store.apk";
-                }
-            } else {
-                // 💻 Локально
-                apkPath = "/Users/IUAR0044/generalstore/General-Store.apk";
+            String apkPath = System.getenv("APK_PATH");
+            if (apkPath == null || apkPath.isEmpty()) {
+                apkPath = System.getProperty("user.dir") + "/General-Store.apk";
             }
 
             System.out.println("📦 Using APK path: " + apkPath);
@@ -52,6 +44,7 @@ public class BasePage {
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
                     .eventTimings();
 
+            // ✅ CI-specific tuning
             if (isCI()) {
                 System.out.println("🏗️ Running in CI mode: applying stability and timeouts...");
                 options.setCapability("appium:ignoreHiddenApiPolicyError", true);
@@ -68,6 +61,7 @@ public class BasePage {
                 options.setCapability("newCommandTimeout", 300);
             }
 
+            // ⏳ Pause to allow emulator & app to stabilize
             if (isCI()) {
                 System.out.println("⏳ Waiting for app to stabilize (CI delay 25s)...");
                 Thread.sleep(5000);
@@ -94,6 +88,7 @@ public class BasePage {
             int waitSeconds = isCI() ? 45 : 20;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
+            // ✅ Wait for splash/main screen
             try {
                 System.out.println("👀 Waiting for splash screen to finish...");
                 wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*")));
