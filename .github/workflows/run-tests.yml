@@ -53,7 +53,18 @@ jobs:
 
       - name: Move APK to tmp for Appium
         run: |
-          [ -f "$PWD/General-Store.apk" ] && echo "✅ Found APK" && cp "$PWD/General-Store.apk" "/tmp/General-Store.apk" && chmod 644 "/tmp/General-Store.apk" && echo "APK_PATH=/tmp/General-Store.apk" >> $GITHUB_ENV || (echo "❌ APK not found" && exit 1)
+          echo "📦 Checking for General-Store.apk..." && \
+          [ -f "$PWD/General-Store.apk" ] && \
+          cp "$PWD/General-Store.apk" "/tmp/General-Store.apk" && \
+          chmod 644 "/tmp/General-Store.apk" && \
+          echo "APK_PATH=/tmp/General-Store.apk" >> $GITHUB_ENV || \
+          (echo "❌ APK not found" && exit 1)"$PWD/General-Store.apk" ] && echo "✅ Found APK" && cp "$PWD/General-Store.apk" "/tmp/General-Store.apk" && chmod 644 "/tmp/General-Store.apk" && echo "APK_PATH=/tmp/General-Store.apk" >> $GITHUB_ENV || (echo "❌ APK not found" && exit 1)
+
+      - name: Validate APK
+        run: |
+          echo "🔍 Validating APK..." && \
+          unzip -t /tmp/General-Store.apk > /dev/null || \
+          (echo "❌ APK is corrupted or not a valid ZIP/APK" && exit 1)
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
