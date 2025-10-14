@@ -62,7 +62,6 @@ jobs:
           arch: x86_64
           profile: pixel
           disable-animations: true
-          emulator-options: -memory 512 -gpu swiftshader_indirect
           script: |
             set -e
             export CI=true
