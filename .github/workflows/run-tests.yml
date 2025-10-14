@@ -66,8 +66,9 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
-          target: default
-          arch: x86
+          target: google_apis
+          arch: x86_64
+
           profile: pixel
           disable-animations: true
           emulator-options: -memory 1536 -no-snapshot -no-boot-anim -gpu swiftshader_indirect
