@@ -59,7 +59,7 @@ jobs:
         with:
           api-level: 28
           target: default
-          arch: x86_x64
+          arch: x86_64
           profile: pixel
           disable-animations: true
           emulator-options: -memory 512 -gpu swiftshader_indirect
