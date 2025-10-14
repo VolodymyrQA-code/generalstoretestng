@@ -57,7 +57,7 @@ jobs:
       - name: Start Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 33
           target: default
           arch: x86_64
           profile: pixel
@@ -68,8 +68,12 @@ jobs:
             echo "🕓 Booting emulator..."
             timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do if [ $counter -ge $timeout ]; then echo "❌ Timeout waiting for emulator to boot"; exit 1; fi; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done
             adb shell input keyevent 82
-            echo "✅ Emulator ready!"
+            echo "✅ Emulator booted!"
+            echo "⏳ Waiting for ADB device to be ready..."
+            adb wait-for-device
             adb devices
+            sleep 5
+            echo "✅ Emulator is fully ready!"
 
       - name: Run Android UI tests
         run: |
