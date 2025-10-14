@@ -59,14 +59,15 @@ jobs:
         with:
           api-level: 28
           target: default
-          arch: x86_64
+          arch: x86          # швидший на CI
           profile: pixel
           disable-animations: true
-          emulator-options: -memory 2048 -gpu swiftshader_indirect
+          emulator-options: -memory 2072 -gpu swiftshader_indirect  # більше RAM + GPU для GUI
           script: |
             set -e; export CI=true;
-            echo "🕓 Booting emulator..."; timeout=400; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done;
-            adb shell settings put global window_animation_scale 0.0; adb shell settings put global transition_animation_scale 0.0; adb shell settings put global animator_duration_scale 0.0; adb shell input keyevent 82; echo "✅ Emulator ready!"; adb devices;
+            echo "🕓 Booting emulator..."; timeout=500; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done;
+            echo "⏳ Waiting for adb device..."; counter=0; while ! adb get-state 1>/dev/null 2>&1; do [ $counter -ge 60 ] && echo "❌ Device not found" && exit 1; sleep 5; counter=$((counter+5)); done; adb devices;
+            adb shell settings put global window_animation_scale 0.0; adb shell settings put global transition_animation_scale 0.0; adb shell settings put global animator_duration_scale 0.0; adb shell input keyevent 82; echo "✅ Emulator ready!";
             echo "📸 Taking screenshot & page source after boot..."; mkdir -p $GITHUB_WORKSPACE/target/screenshots; adb exec-out screencap -p > $GITHUB_WORKSPACE/target/screenshots/boot_screen.png; adb shell uiautomator dump /sdcard/boot_page.xml; adb pull /sdcard/boot_page.xml $GITHUB_WORKSPACE/target/screenshots/boot_page.xml;
             echo "Cleaning Appium cache..."; rm -rf /tmp/appium* ~/.cache/appium $GITHUB_WORKSPACE/appium_logs || true;
             echo "📸 Starting Appium server..."; appium --base-path /wd/hub --log-level info > appium.log 2>&1 & APPIUM_PID=$!;
