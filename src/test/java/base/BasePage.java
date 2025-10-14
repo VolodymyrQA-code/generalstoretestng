@@ -56,14 +56,14 @@ public class BasePage {
             System.out.println("📦 Using APK path: " + apkPath);
 
             // UiAutomator2Options with W3C Appium capabilities
-            UiAutomator2Options options = new UiAutomator2Options()
-                    .setDeviceName("emulator-5554")
-                    .setApp(apkPath)
-                    .setAppPackage("com.androidsample.generalstore")
-                    .setAppActivity("com.androidsample.generalstore.SplashActivity")
-                    .setAppWaitActivity("com.androidsample.generalstore.*")
-                    .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
-                    .eventTimings();
+            UiAutomator2Options options = new UiAutomator2Options();
+                options.setCapability("appium:app", apkPath);
+                options.setCapability("appium:deviceName", "emulator-5554");
+                options.setCapability("appium:automationName", AutomationName.ANDROID_UIAUTOMATOR2);
+                options.setCapability("appium:appPackage", "com.androidsample.generalstore");
+                options.setCapability("appium:appActivity", "com.androidsample.generalstore.SplashActivity");
+                options.setCapability("appium:appWaitActivity", "com.androidsample.generalstore.*");
+                options.setCapability("appium:autoGrantPermissions", true);
 
             // CI-specific capabilities
             if (isCI()) {
