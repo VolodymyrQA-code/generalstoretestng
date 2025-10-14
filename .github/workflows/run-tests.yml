@@ -59,9 +59,10 @@ jobs:
         with:
           api-level: 28
           target: default
-          arch: x86_64
+          arch: x86
           profile: pixel
           disable-animations: true
+          emulator-options: -memory 1024 -gpu swiftshader_indirect
           script: |
             set -e
             export CI=true
