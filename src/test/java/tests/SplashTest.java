@@ -1,29 +1,42 @@
 package tests;
 
-import java.sql.DriverManager;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 import io.appium.java_client.android.AndroidDriver;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-
-import base.BasePage;
+import org.junit.jupiter.api.*;
 import pages.SplashPage;
-import io.qameta.allure.Step;
-import io.qameta.allure.Description;
-public class SplashTest extends BasePage {
+import java.net.MalformedURLException;
+import java.net.URL;
+import org.openqa.selenium.remote.DesiredCapabilities;
+
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class SplashTest {
+
+    private AndroidDriver driver;
+    private SplashPage splashPage;
+
+    @BeforeAll
+    public void setUp() throws MalformedURLException {
+        DesiredCapabilities caps = new DesiredCapabilities();
+        caps.setCapability("platformName", "Android");
+        caps.setCapability("deviceName", "emulator-5554");
+        caps.setCapability("app", System.getProperty("user.dir") + "/app/General-Store.apk");
+        caps.setCapability("automationName", "UIAutomator2");
+        caps.setCapability("autoGrantPermissions", true);
+
+        driver = new AndroidDriver(new URL("http://127.0.0.1:4723/wd/hub"), caps);
+        splashPage = new SplashPage(driver);
+    }
 
     @Test
+    @DisplayName("Splash screen appears or home screen is ready")
     public void testSplashAppears() {
-        AndroidDriver driver = BasePage.getDriver();
-        SplashPage splashPage = new SplashPage(driver);
+        boolean splashShown = splashPage.isSplashDisplayed();
+        Assertions.assertTrue(splashShown, "Splash screen should appear or home screen should be ready");
+    }
 
-        boolean splashFound = splashPage.isSplashDisplayed();
-        assertTrue(splashFound, "Splash screen should appear at least once");
+    @AfterAll
+    public void tearDown() {
+        if (driver != null) {
+            driver.quit();
+        }
     }
 }
-
