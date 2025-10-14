@@ -55,17 +55,17 @@ public class BasePage {
             }
             System.out.println("📦 Using APK path: " + apkPath);
 
-            // CI: чекаємо завантаження емулятора
+            // Якщо CI — перевіряємо, чи емулятор запустився
             if (isCI()) {
                 System.out.println("🕓 Checking for emulator...");
-                int timeout = 300; // 5 хв максимум
+                int timeout = 300; // секунд
                 int elapsed = 0;
                 while (true) {
                     Process p = Runtime.getRuntime().exec("adb shell getprop sys.boot_completed");
                     p.waitFor();
                     String output = new String(p.getInputStream().readAllBytes()).trim();
                     if ("1".equals(output)) break;
-                    if (elapsed >= timeout) throw new RuntimeException("❌ Timeout waiting for emulator boot");
+                    if (elapsed >= timeout) throw new RuntimeException("❌ Timeout waiting for emulator to boot");
                     System.out.println("⏳ Waiting for emulator to boot... " + elapsed + "s");
                     Thread.sleep(5000);
                     elapsed += 5;
@@ -73,39 +73,38 @@ public class BasePage {
                 System.out.println("✅ Emulator booted!");
             }
 
-            // W3C-совісні UiAutomator2Options
-            UiAutomator2Options options = new UiAutomator2Options()
-                    .setApp(apkPath)
-                    .setDeviceName("emulator-5554")
-                    .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
-                    .setAppPackage("com.androidsample.generalstore")
-                    .setAppActivity("com.androidsample.generalstore.SplashActivity")
-                    .setAppWaitActivity("com.androidsample.generalstore.*")
-                    .setAutoGrantPermissions(true)
-                    .setFullReset(false);
+            // UiAutomator2Options
+            UiAutomator2Options options = new UiAutomator2Options();
+            options.setCapability("appium:app", apkPath);
+            options.setCapability("appium:deviceName", "emulator-5554");
+            options.setCapability("appium:automationName", AutomationName.ANDROID_UIAUTOMATOR2);
+            options.setCapability("appium:appPackage", "com.androidsample.generalstore");
+            options.setCapability("appium:appActivity", "com.androidsample.generalstore.SplashActivity");
+            options.setCapability("appium:appWaitActivity", "com.androidsample.generalstore.*");
+            options.setCapability("appium:autoGrantPermissions", true);
+            options.setCapability("appium:fullReset", false);
+            options.setCapability("appium:clearDeviceLogsOnStart", true);
 
-            // CI-specific capabilities
             if (isCI()) {
                 options.setCapability("appium:ignoreHiddenApiPolicyError", true);
                 options.setCapability("appium:adbExecTimeout", 600_000);
                 options.setCapability("appium:uiautomator2ServerInstallTimeout", 180_000);
                 options.setCapability("appium:uiautomator2ServerLaunchTimeout", 180_000);
                 options.setCapability("appium:newCommandTimeout", 600);
-                options.setCapability("appium:clearDeviceLogsOnStart", true);
             } else {
                 options.setCapability("appium:newCommandTimeout", 300);
             }
 
-            // CI delay
+            // CI delay перед стартом
             if (isCI()) {
                 System.out.println("⏳ Waiting for app to stabilize (CI delay 5s)...");
                 Thread.sleep(5000);
             }
 
+            // Підключення до Appium
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
             System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
 
-            // Retry driver init
             int retryCount = 0, maxRetries = 3;
             while (retryCount < maxRetries) {
                 try {
@@ -121,21 +120,17 @@ public class BasePage {
             }
 
             // WebDriverWait
-            int waitSeconds = isCI() ? 120 : 20;
+            int waitSeconds = isCI() ? 60 : 20;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
-            // Очікування splash або home screen
+            // Очікування splash screen
             try {
-                System.out.println("👀 Waiting for splash or home screen...");
+                System.out.println("👀 Waiting for splash screen element...");
                 By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
-                By homeLocator = By.id("com.androidsample.generalstore:id/toolbar_title");
-                wait.until(driver -> {
-                    return driver.findElements(splashLocator).size() > 0 ||
-                           driver.findElements(homeLocator).size() > 0;
-                });
-                System.out.println("✅ Splash or home screen detected.");
+                wait.until(ExpectedConditions.visibilityOfElementLocated(splashLocator));
+                System.out.println("✅ Splash screen is visible.");
             } catch (TimeoutException e) {
-                System.out.println("⚠️ Splash/home screen not found after timeout, continuing anyway.");
+                System.out.println("⚠️ Splash screen not found after timeout, continuing anyway.");
                 takeScreenshot("splash_timeout");
             }
 
