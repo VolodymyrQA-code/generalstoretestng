@@ -71,9 +71,9 @@ jobs:
             echo "✅ Emulator booted!"
             echo "⏳ Waiting for ADB device to be ready..."
             adb wait-for-device
-            adb devices
             sleep 5
             echo "✅ Emulator is fully ready!"
+            adb devices
 
       - name: Run Android UI tests
         run: |
