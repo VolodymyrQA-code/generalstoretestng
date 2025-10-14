@@ -67,12 +67,14 @@ jobs:
             export CI=true
             echo "🕓 Booting emulator..."
             timeout=300; counter=0
-            while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do
+            while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do
               if [ $counter -ge $timeout ]; then echo "❌ Timeout waiting for emulator to boot"; exit 1; fi
               echo "Waiting for emulator to boot... ($counter/$timeout)"
               sleep 5
               counter=$((counter + 5))
             done
+            adb shell input keyevent 82
+            echo "✅ Emulator ready!"
             adb shell input keyevent 82
             echo "✅ Emulator ready!"
             adb devices
