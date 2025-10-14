@@ -16,7 +16,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 public class BasePage {
     protected static AndroidDriver driver;
@@ -38,10 +37,6 @@ public class BasePage {
         } catch (IOException e) {
             System.out.println("⚠️ Failed to save screenshot: " + e.getMessage());
         }
-    }
-
-    public static AndroidDriver getDriver() {
-        return driver;
     }
 
     private static boolean isAppiumRunning(String appiumUrl) {
@@ -77,17 +72,32 @@ public class BasePage {
     }
 
     private static void pressWaitButton() throws IOException, InterruptedException {
-        // Тут натискання кнопки "Wait" через ADB на координати приблизно середини екрана
-        // Можна уточнити координати під ваш розмір емулятора
         Runtime.getRuntime().exec("adb shell input tap 540 1040");
         System.out.println("🖱 Pressed 'Wait' button to continue");
-        Thread.sleep(2000); // пауза після натискання
+        Thread.sleep(2000);
+    }
+
+    private static void waitForResumedActivity() throws IOException, InterruptedException {
+        int retries = 0;
+        while (retries < 10) {
+            Process p = Runtime.getRuntime().exec("adb shell dumpsys activity activities | grep 'ResumedActivity'");
+            p.waitFor();
+            String output = new String(p.getInputStream().readAllBytes()).trim();
+            if (!output.isEmpty() && !output.contains("Not found")) {
+                System.out.println("🎯 Current resumed activity: " + output);
+                return;
+            }
+            System.out.println("⌛ Waiting for resumed activity...");
+            Thread.sleep(3000);
+            retries++;
+        }
+        System.out.println("⚠️ No resumed activity detected after timeout.");
     }
 
     @BeforeAll
     static void setup() {
         try {
-            // APK path
+            // === Визначення шляху до APK ===
             String apkPath = System.getenv("APK_PATH");
             if (apkPath == null || apkPath.isEmpty()) {
                 apkPath = System.getProperty("user.dir") + "/app/General-Store.apk";
@@ -97,10 +107,10 @@ public class BasePage {
             }
             System.out.println("📦 Using APK path: " + apkPath);
 
-            // Якщо CI — перевіряємо, чи емулятор запустився
+            // === Перевірка емулятора ===
             if (isCI()) {
                 System.out.println("🕓 Checking for emulator...");
-                int timeout = 300; // секунд
+                int timeout = 300;
                 int elapsed = 0;
                 while (true) {
                     Process p = Runtime.getRuntime().exec("adb shell getprop sys.boot_completed");
@@ -115,35 +125,49 @@ public class BasePage {
                 System.out.println("✅ Emulator booted!");
             }
 
-            // UiAutomator2Options
-            UiAutomator2Options options = new UiAutomator2Options();
-            options.setCapability("appium:app", apkPath);
-            options.setCapability("appium:deviceName", "emulator-5554");
-            options.setCapability("appium:automationName", AutomationName.ANDROID_UIAUTOMATOR2);
-            options.setCapability("appium:appPackage", "com.androidsample.generalstore");
-            options.setCapability("appium:appActivity", "com.androidsample.generalstore.SplashActivity");
-            options.setCapability("appium:appWaitActivity", "com.androidsample.generalstore.*");
-            options.setCapability("appium:autoGrantPermissions", true);
-            options.setCapability("appium:fullReset", false);
-            options.setCapability("appium:clearDeviceLogsOnStart", true);
-
-            if (isCI()) {
-                options.setCapability("appium:ignoreHiddenApiPolicyError", true);
-                options.setCapability("appium:adbExecTimeout", 600_000);
-                options.setCapability("appium:uiautomator2ServerInstallTimeout", 180_000);
-                options.setCapability("appium:uiautomator2ServerLaunchTimeout", 180_000);
-                options.setCapability("appium:newCommandTimeout", 600);
-            } else {
-                options.setCapability("appium:newCommandTimeout", 300);
+            // === Перевірка підключених пристроїв ===
+            System.out.println("🔍 Checking connected devices...");
+            Process listDevices = Runtime.getRuntime().exec("adb devices");
+            listDevices.waitFor();
+            String devices = new String(listDevices.getInputStream().readAllBytes()).trim();
+            System.out.println("📱 Connected devices:\n" + devices);
+            if (!devices.contains("emulator-5554")) {
+                throw new RuntimeException("❌ Emulator device not found via ADB!");
             }
 
-            // CI delay перед стартом
+            // === Перевірка System UI перед підключенням ===
+            if (isCI()) {
+                if (!isSystemUIResponsive()) {
+                    System.out.println("⚠️ SystemUI detected before Appium connect — pressing Wait...");
+                    pressWaitButton();
+                    Thread.sleep(2000);
+                }
+            }
+
+            // === Налаштування UiAutomator2Options ===
+            UiAutomator2Options options = new UiAutomator2Options()
+                    .setApp(apkPath)
+                    .setDeviceName("emulator-5554")
+                    .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
+                    .setAppPackage("com.androidsample.generalstore")
+                    .setAppActivity("com.androidsample.generalstore.SplashActivity")
+                    .setAppWaitActivity("com.androidsample.generalstore.*")
+                    .autoGrantPermissions();
+
+            if (isCI()) {
+                options.setUiautomator2ServerInstallTimeout(Duration.ofSeconds(180));
+                options.setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(180));
+                options.setAdbExecTimeout(Duration.ofSeconds(600));
+                options.setNewCommandTimeout(Duration.ofSeconds(600));
+            }
+
+            // === Невелика пауза для стабілізації ===
             if (isCI()) {
                 System.out.println("⏳ Waiting for app to stabilize (CI delay 5s)...");
                 Thread.sleep(5000);
             }
 
-            // Підключення до Appium
+            // === Підключення до Appium ===
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
             System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
 
@@ -151,12 +175,13 @@ public class BasePage {
                 throw new RuntimeException("❌ Appium server is not running at " + appiumUrl);
             }
 
+            // === Очікування активної Activity перед стартом ===
+            waitForResumedActivity();
+
+            // === Ініціалізація драйвера ===
             int retryCount = 0, maxRetries = 3;
             while (retryCount < maxRetries) {
                 try {
-                    if (!isSystemUIResponsive()) {
-                        pressWaitButton();
-                    }
                     driver = new AndroidDriver(new URL(appiumUrl), options);
                     System.out.println("✅ AndroidDriver initialized successfully.");
                     break;
@@ -168,11 +193,11 @@ public class BasePage {
                 }
             }
 
-            // WebDriverWait
+            // === Налаштування WebDriverWait ===
             int waitSeconds = isCI() ? 60 : 20;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
-            // Очікування splash screen
+            // === Очікування splash screen ===
             try {
                 System.out.println("👀 Waiting for splash screen element...");
                 By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");

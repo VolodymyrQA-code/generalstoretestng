@@ -57,7 +57,7 @@ jobs:
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 28
           target: default
           arch: x86_64
           profile: pixel
@@ -70,6 +70,7 @@ jobs:
             adb shell input keyevent 82
             echo "✅ Emulator ready!"
             adb devices
+            adb shell am start -n com.androidsample.generalstore/com.androidsample.generalstore.SplashActivity
             echo "Cleaning Appium cache and temp folders..."
             rm -rf /tmp/appium* || true
             rm -rf ~/.cache/appium || true
