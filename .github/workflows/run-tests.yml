@@ -54,6 +54,10 @@ jobs:
           file "$APK_PATH"
           unzip -t "$APK_PATH" || (echo "❌ APK is corrupted"; exit 1)
 
+      - name: Install Android system image
+        run: |
+          yes | sdkmanager "system-images;android-30;google_apis;x86"
+
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
