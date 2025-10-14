@@ -57,21 +57,20 @@ jobs:
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 28
+          api-level: 30
           target: default
           arch: x86
           profile: pixel
           disable-animations: true
-          emulator-options: -memory 1024 -gpu swiftshader_indirect
+          emulator-options: -memory 1536 -gpu swiftshader_indirect
           script: |
             set -e
             export CI=true
             echo "🕓 Booting emulator..."
-            timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done
-            adb shell input keyevent 82
-            echo "✅ Emulator ready!"
-            adb shell input keyevent 82
-            echo "✅ Emulator ready!"
+            timeout=400; counter=0; while ! adb devices | grep -q emulator-5554; do [ $counter -ge $timeout ] && echo "❌ Emulator not found" && exit 1; echo "Waiting for emulator ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done
+            echo "✅ Emulator connected"
+            while [ "$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do sleep 5; done
+            adb shell settings put global window_animation_scale 0.0; adb shell settings put global transition_animation_scale 0.0; adb shell settings put global animator_duration_scale 0.0; adb shell input keyevent 82; echo "✅ Emulator ready!"
             adb devices
             echo "Cleaning Appium cache and temp folders..."
             rm -rf /tmp/appium* || true
@@ -81,7 +80,8 @@ jobs:
             appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
             APPIUM_PID=$!
             echo "🌐 Launching app..."; adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"; adb shell am start -n com.android.generalstore/.SplashActivity; echo "✅ App launched"
-            echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting Appium... attempt $i/30"; sleep 2; done; echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done
+            echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting Appium... attempt $i/30"; sleep 2; done;
+            echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done
             echo "🧪 Running Maven tests..."
             adb shell dumpsys activity activities | grep "ResumedActivity"
             mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
