@@ -25,16 +25,33 @@ public class BasePage {
         return ci != null && ci.equalsIgnoreCase("true");
     }
 
+    public static void takeScreenshot(String name) {
+    if (driver == null) return;
+    try {
+        File srcFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+        Files.createDirectories(Paths.get("target/screenshots"));
+        File destFile = new File("target/screenshots/" + name + ".png");
+        Files.copy(srcFile.toPath(), destFile.toPath());
+        System.out.println("📸 Screenshot saved: " + destFile.getAbsolutePath());
+    } catch (IOException e) {
+        System.out.println("⚠️ Failed to save screenshot: " + e.getMessage());
+    }
+}
+
     @BeforeAll
     static void setup() {
         try {
+            // === 1️⃣ Визначення шляху до APK ===
             String apkPath = System.getenv("APK_PATH");
             if (apkPath == null || apkPath.isEmpty()) {
-                apkPath = System.getProperty("user.dir") + "/General-Store.apk";
+                apkPath = System.getProperty("user.dir") + "/app/General-Store.apk";
+                if (!new File(apkPath).exists()) {
+                    apkPath = System.getProperty("user.dir") + "/General-Store.apk";
+                }
             }
-
             System.out.println("📦 Using APK path: " + apkPath);
 
+            // === 2️⃣ Налаштування UiAutomator2 ===
             UiAutomator2Options options = new UiAutomator2Options()
                     .setDeviceName("emulator-5554")
                     .setApp(apkPath)
@@ -43,7 +60,7 @@ public class BasePage {
                     .setAppWaitActivity("com.androidsample.generalstore.*")
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
                     .eventTimings();
-            // ✅ CI-specific tuning
+
             if (isCI()) {
                 System.out.println("🏗️ Running in CI mode: applying stability and timeouts...");
                 options.setCapability("appium:ignoreHiddenApiPolicyError", true);
@@ -60,12 +77,13 @@ public class BasePage {
                 options.setCapability("newCommandTimeout", 300);
             }
 
-            // ⏳ Pause to allow emulator & app to stabilize
+            // === 3️⃣ Очікування для стабілізації ===
             if (isCI()) {
                 System.out.println("⏳ Waiting for app to stabilize (CI delay 5s)...");
                 Thread.sleep(5000);
             }
 
+            // === 4️⃣ Підключення до Appium ===
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
             System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
 
@@ -87,7 +105,7 @@ public class BasePage {
             int waitSeconds = isCI() ? 45 : 20;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
-            // ✅ Wait for splash/main screen
+            // === 5️⃣ Очікування Splash-екрану ===
             try {
                 System.out.println("👀 Waiting for splash screen to finish...");
                 wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*")));
@@ -118,29 +136,7 @@ public class BasePage {
         }
     }
 
-    public boolean isTextEqual(By locator, String expectedText) {
-        try {
-            String actualText = driver.findElement(locator).getText().trim();
-            return actualText.equals(expectedText.trim());
-        } catch (NoSuchElementException e) {
-            return false;
-        }
-    }
-
-    public static void takeScreenshot(String name) {
-        if (driver == null) return;
-        try {
-            File srcFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-            Files.createDirectories(Paths.get("target/screenshots"));
-            File destFile = new File("target/screenshots/" + name + ".png");
-            Files.copy(srcFile.toPath(), destFile.toPath());
-            System.out.println("📸 Screenshot saved: " + destFile.getAbsolutePath());
-        } catch (IOException e) {
-            System.out.println("⚠️ Failed to save screenshot: " + e.getMessage());
-        }
-    }
-
     public static AndroidDriver getDriver() {
-        return driver;
-    }
+    return driver;
+}
 }
