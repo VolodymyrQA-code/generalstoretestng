@@ -74,11 +74,11 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 31
-          target: google_apis
+          target: default
           arch: x86_64
           profile: Nexus 5
-          headless: true
           disable-animations: true
+          emulator-options: -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           emulator-boot-timeout: 1200
           script: |
             set -e
@@ -97,17 +97,8 @@ jobs:
             appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
             APPIUM_PID=$!
 
-            echo "🌐 Installing and launching app..."
-            adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
-            adb shell am start -n com.android.generalstore/.SplashActivity
-            echo "✅ App launched"
-
             echo "⌛ Waiting for Appium to start..."
-            for i in $(seq 1 30); do
-              curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium ready!" && break
-              echo "Waiting Appium... attempt $i/30"
-              sleep 2
-            done
+            for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium ready!" && break; echo "Waiting Appium... attempt $i/30"; sleep 2; done
 
             echo "🧪 Running Maven tests..."
             mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
