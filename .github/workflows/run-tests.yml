@@ -80,6 +80,7 @@ jobs:
             APPIUM_PID=$!
             echo "Waiting for Appium to start..."; for i in {1..30}; do if curl -s http://localhost:4723/wd/hub/status > /dev/null; then echo "✅ Appium server is ready!"; break; fi; echo "Waiting for Appium... attempt $i/30"; sleep 2; done
             echo "🧪 Running Maven tests..."
+            adb shell dumpsys activity activities | grep "ResumedActivity"
             mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
             echo "🧹 Stopping Appium..."; if [ -n "$APPIUM_PID" ]; then kill $APPIUM_PID 2>/dev/null || true; fi
             if [ -f appium.log ]; then echo "📋 Appium logs (last 50 lines):"; tail -50 appium.log; fi
