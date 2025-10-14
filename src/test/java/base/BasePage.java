@@ -39,6 +39,10 @@ public class BasePage {
         }
     }
 
+    public static AndroidDriver getDriver() {
+    return driver;
+}
+
     private static boolean isAppiumRunning(String appiumUrl) {
         try {
             URL url = new URL(appiumUrl + "/status");
