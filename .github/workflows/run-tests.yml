@@ -7,7 +7,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -48,35 +48,44 @@ jobs:
       - name: Check APK
         run: |
           APK_PATH="$GITHUB_WORKSPACE/app/General-Store.apk"
-          [ -f "$APK_PATH" ] || { echo "❌ APK not found at $APK_PATH"; exit 1; }
+          if [ ! -f "$APK_PATH" ]; then echo "❌ APK not found at $APK_PATH"; exit 1; fi
           echo "✅ APK found at $APK_PATH"
           echo "Verifying APK format..."
           file "$APK_PATH"
-          unzip -t "$APK_PATH" || { echo "❌ APK is corrupted"; exit 1; }
+          unzip -t "$APK_PATH" || (echo "❌ APK is corrupted"; exit 1)
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 28
           target: default
-          arch: x86          # швидший на CI
+          arch: x86
           profile: pixel
           disable-animations: true
-          emulator-options: -memory 2072 -gpu swiftshader_indirect  # більше RAM + GPU для GUI
+          emulator-options: -memory 3072 -gpu swiftshader_indirect
           script: |
-            set -e; export CI=true;
-            echo "🕓 Booting emulator..."; timeout=500; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done;
-            echo "⏳ Waiting for adb device..."; counter=0; while ! adb get-state 1>/dev/null 2>&1; do [ $counter -ge 60 ] && echo "❌ Device not found" && exit 1; sleep 5; counter=$((counter+5)); done; adb devices;
-            adb shell settings put global window_animation_scale 0.0; adb shell settings put global transition_animation_scale 0.0; adb shell settings put global animator_duration_scale 0.0; adb shell input keyevent 82; echo "✅ Emulator ready!";
-            echo "📸 Taking screenshot & page source after boot..."; mkdir -p $GITHUB_WORKSPACE/target/screenshots; adb exec-out screencap -p > $GITHUB_WORKSPACE/target/screenshots/boot_screen.png; adb shell uiautomator dump /sdcard/boot_page.xml; adb pull /sdcard/boot_page.xml $GITHUB_WORKSPACE/target/screenshots/boot_page.xml;
-            echo "Cleaning Appium cache..."; rm -rf /tmp/appium* ~/.cache/appium $GITHUB_WORKSPACE/appium_logs || true;
-            echo "📸 Starting Appium server..."; appium --base-path /wd/hub --log-level info > appium.log 2>&1 & APPIUM_PID=$!;
-            echo "🌐 Launching app..."; adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"; adb shell am start -n com.android.generalstore/.SplashActivity;
-            echo "✅ App launched"; for i in $(seq 1 60); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium ready!" && break; echo "Waiting Appium $i/60"; sleep 2; done;
-            echo "🔎 Checking resumed activity..."; i=1; while [ $i -le 30 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting resumed activity $i/30"; sleep 4; i=$((i + 1)); done;
-            echo "🧪 Running Maven tests..."; adb shell dumpsys activity activities | grep "ResumedActivity"; mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?;
-            echo "🧹 Stopping Appium..."; [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true; [ -f appium.log ] && echo "📋 Appium logs (last 50 lines):" && tail -50 appium.log;
-            [ -d "target/allure-results" ] && echo "✅ Test results found" && ls -la target/allure-results/ || { echo "⚠️ No results, creating dummy"; mkdir -p target/allure-results; echo '{}' > target/allure-results/dummy.json; }; exit ${TEST_EXIT_CODE:-0}
+            set -e
+            export CI=true
+            echo "🕓 Booting emulator..."
+            timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done
+            adb shell input keyevent 82
+            echo "✅ Emulator ready!"
+            adb shell input keyevent 82
+            echo "✅ Emulator ready!"
+            adb devices
+            echo "Cleaning Appium cache and temp folders..."
+            rm -rf /tmp/appium* || true
+            rm -rf ~/.cache/appium || true
+            rm -rf $GITHUB_WORKSPACE/appium_logs || true
+            echo "📸 Starting Appium server..."
+            appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
+            APPIUM_PID=$!
+            echo "🌐 Launching app..."; adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"; adb shell am start -n com.android.generalstore/.SplashActivity; echo "✅ App launched"
+            echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting Appium... attempt $i/30"; sleep 2; done; echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done
+            echo "🧪 Running Maven tests..."
+            adb shell dumpsys activity activities | grep "ResumedActivity"
+            mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
+            echo "🧹 Stopping Appium..."; [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true; [ -f appium.log ] && echo "📋 Appium logs (last 50 lines):" && tail -50 appium.log; if [ -d "target/allure-results" ]; then echo "✅ Test results found in target/allure-results" && ls -la target/allure-results/; else echo "⚠️ No test results found in target/allure-results" && mkdir -p target/allure-results && echo '{}' > target/allure-results/dummy.json; fi; exit ${TEST_EXIT_CODE:-0}
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
@@ -87,7 +96,15 @@ jobs:
       - name: Generate Allure report
         if: always()
         run: |
-          [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ] && { echo "📊 Generating Allure report..."; rm -rf target/site/allure-maven-plugin || true; mvn -B allure:report; } || { echo "⚠️ No test results"; mkdir -p target/site/allure-maven-plugin; echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html; }
+          if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then
+            echo "📊 Generating Allure report..."
+            rm -rf target/site/allure-maven-plugin || true
+            mvn -B allure:report
+          else
+            echo "⚠️ No test results to generate report from"
+            mkdir -p target/site/allure-maven-plugin
+            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html
+          fi
 
       - name: Upload Allure report
         if: always()
