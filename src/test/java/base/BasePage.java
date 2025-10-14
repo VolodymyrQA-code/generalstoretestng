@@ -26,22 +26,25 @@ public class BasePage {
     }
 
     public static void takeScreenshot(String name) {
-    if (driver == null) return;
-    try {
-        File srcFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-        Files.createDirectories(Paths.get("target/screenshots"));
-        File destFile = new File("target/screenshots/" + name + ".png");
-        Files.copy(srcFile.toPath(), destFile.toPath());
-        System.out.println("📸 Screenshot saved: " + destFile.getAbsolutePath());
-    } catch (IOException e) {
-        System.out.println("⚠️ Failed to save screenshot: " + e.getMessage());
+        if (driver == null) return;
+        try {
+            File srcFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+            Files.createDirectories(Paths.get("target/screenshots"));
+            File destFile = new File("target/screenshots/" + name + ".png");
+            Files.copy(srcFile.toPath(), destFile.toPath());
+            System.out.println("📸 Screenshot saved: " + destFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.out.println("⚠️ Failed to save screenshot: " + e.getMessage());
+        }
     }
-}
+
+    public static AndroidDriver getDriver() {
+        return driver;
+    }
 
     @BeforeAll
     static void setup() {
         try {
-            // === 1️⃣ Визначення шляху до APK ===
             String apkPath = System.getenv("APK_PATH");
             if (apkPath == null || apkPath.isEmpty()) {
                 apkPath = System.getProperty("user.dir") + "/app/General-Store.apk";
@@ -51,7 +54,6 @@ public class BasePage {
             }
             System.out.println("📦 Using APK path: " + apkPath);
 
-            // === 2️⃣ Налаштування UiAutomator2 ===
             UiAutomator2Options options = new UiAutomator2Options()
                     .setDeviceName("emulator-5554")
                     .setApp(apkPath)
@@ -61,6 +63,7 @@ public class BasePage {
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
                     .eventTimings();
 
+            // CI-specific tuning
             if (isCI()) {
                 System.out.println("🏗️ Running in CI mode: applying stability and timeouts...");
                 options.setCapability("appium:ignoreHiddenApiPolicyError", true);
@@ -77,18 +80,17 @@ public class BasePage {
                 options.setCapability("newCommandTimeout", 300);
             }
 
-            // === 3️⃣ Очікування для стабілізації ===
+            // CI delay
             if (isCI()) {
                 System.out.println("⏳ Waiting for app to stabilize (CI delay 5s)...");
                 Thread.sleep(5000);
             }
 
-            // === 4️⃣ Підключення до Appium ===
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
             System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
 
-            int retryCount = 0;
-            int maxRetries = 3;
+            // Retry driver init
+            int retryCount = 0, maxRetries = 3;
             while (retryCount < maxRetries) {
                 try {
                     driver = new AndroidDriver(new URL(appiumUrl), options);
@@ -102,16 +104,18 @@ public class BasePage {
                 }
             }
 
-            int waitSeconds = isCI() ? 45 : 20;
+            int waitSeconds = isCI() ? 60 : 20; // збільшено для CI
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
-            // === 5️⃣ Очікування Splash-екрану ===
+            // Очікування сплеш-екрану через конкретний елемент (замініть на ваш елемент)
             try {
-                System.out.println("👀 Waiting for splash screen to finish...");
-                wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*")));
-                System.out.println("✅ App is ready for testing.");
+                System.out.println("👀 Waiting for splash screen element...");
+                By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
+                wait.until(ExpectedConditions.visibilityOfElementLocated(splashLocator));
+                System.out.println("✅ Splash screen is visible.");
             } catch (TimeoutException e) {
-                System.out.println("⚠️ Splash screen timeout — continuing anyway.");
+                System.out.println("⚠️ Splash screen not found after timeout, continuing anyway.");
+                takeScreenshot("splash_timeout");
             }
 
         } catch (Exception e) {
@@ -135,8 +139,4 @@ public class BasePage {
             }
         }
     }
-
-    public static AndroidDriver getDriver() {
-    return driver;
-}
 }
