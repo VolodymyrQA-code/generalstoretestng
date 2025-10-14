@@ -43,89 +43,104 @@ public class BasePage {
     }
 
     @BeforeAll
-    static void setup() {
-        try {
-            // APK path
-            String apkPath = System.getenv("APK_PATH");
-            if (apkPath == null || apkPath.isEmpty()) {
-                apkPath = System.getProperty("user.dir") + "/app/General-Store.apk";
-                if (!new File(apkPath).exists()) {
-                    apkPath = System.getProperty("user.dir") + "/General-Store.apk";
-                }
+static void setup() {
+    try {
+        // APK path
+        String apkPath = System.getenv("APK_PATH");
+        if (apkPath == null || apkPath.isEmpty()) {
+            apkPath = System.getProperty("user.dir") + "/app/General-Store.apk";
+            if (!new File(apkPath).exists()) {
+                apkPath = System.getProperty("user.dir") + "/General-Store.apk";
             }
-            System.out.println("📦 Using APK path: " + apkPath);
-
-            // UiAutomator2Options with W3C Appium capabilities
-            UiAutomator2Options options = new UiAutomator2Options();
-                options.setCapability("appium:app", apkPath);
-                options.setCapability("appium:deviceName", "emulator-5554");
-                options.setCapability("appium:automationName", AutomationName.ANDROID_UIAUTOMATOR2);
-                options.setCapability("appium:appPackage", "com.androidsample.generalstore");
-                options.setCapability("appium:appActivity", "com.androidsample.generalstore.SplashActivity");
-                options.setCapability("appium:appWaitActivity", "com.androidsample.generalstore.*");
-                options.setCapability("appium:autoGrantPermissions", true);
-
-            // CI-specific capabilities
-            if (isCI()) {
-                System.out.println("🏗️ Running in CI mode: applying stability and timeouts...");
-                options.setCapability("appium:ignoreHiddenApiPolicyError", true);
-                options.setCapability("appium:adbExecTimeout", 600000);
-                options.setCapability("appium:uiautomator2ServerInstallTimeout", 180000);
-                options.setCapability("appium:uiautomator2ServerLaunchTimeout", 180000);
-                options.setCapability("appium:newCommandTimeout", 600);
-                options.setCapability("appium:fullReset", false);
-                options.setCapability("appium:autoGrantPermissions", true);
-                options.setCapability("appium:clearDeviceLogsOnStart", true);
-            } else {
-                options.setCapability("appium:fullReset", false);
-                options.setCapability("appium:autoGrantPermissions", true);
-                options.setCapability("appium:newCommandTimeout", 300);
-            }
-
-            // CI delay
-            if (isCI()) {
-                System.out.println("⏳ Waiting for app to stabilize (CI delay 5s)...");
-                Thread.sleep(5000);
-            }
-
-            String appiumUrl = "http://127.0.0.1:4723/wd/hub";
-            System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
-
-            // Retry driver init
-            int retryCount = 0, maxRetries = 3;
-            while (retryCount < maxRetries) {
-                try {
-                    driver = new AndroidDriver(new URL(appiumUrl), options);
-                    System.out.println("✅ AndroidDriver initialized successfully.");
-                    break;
-                } catch (Exception e) {
-                    retryCount++;
-                    System.out.println("⚠️ Driver init failed (attempt " + retryCount + "/" + maxRetries + "): " + e.getMessage());
-                    if (retryCount == maxRetries) throw e;
-                    Thread.sleep(10000);
-                }
-            }
-
-            int waitSeconds = isCI() ? 60 : 20;
-            wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
-
-            // Очікування splash screen
-            try {
-                System.out.println("👀 Waiting for splash screen element...");
-                By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
-                wait.until(ExpectedConditions.visibilityOfElementLocated(splashLocator));
-                System.out.println("✅ Splash screen is visible.");
-            } catch (TimeoutException e) {
-                System.out.println("⚠️ Splash screen not found after timeout, continuing anyway.");
-                takeScreenshot("splash_timeout");
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            takeScreenshot("init_error");
-            throw new RuntimeException("❌ Failed to initialize driver: " + e.getMessage(), e);
         }
+        System.out.println("📦 Using APK path: " + apkPath);
+
+        // Wait for emulator to be fully booted
+        if (isCI()) {
+            System.out.println("🕓 Checking for emulator...");
+            int timeout = 300; // 5 min max
+            int elapsed = 0;
+            while (true) {
+                Process p = Runtime.getRuntime().exec("adb shell getprop sys.boot_completed");
+                p.waitFor();
+                String output = new String(p.getInputStream().readAllBytes()).trim();
+                if ("1".equals(output)) break;
+                if (elapsed >= timeout) throw new RuntimeException("❌ Timeout waiting for emulator to boot");
+                System.out.println("⏳ Waiting for emulator to boot... " + elapsed + "s");
+                Thread.sleep(5000);
+                elapsed += 5;
+            }
+            System.out.println("✅ Emulator booted!");
+        }
+
+        // Setup Appium options
+        UiAutomator2Options options = new UiAutomator2Options();
+        options.setCapability("appium:app", apkPath);
+        options.setCapability("appium:deviceName", "emulator-5554");
+        options.setCapability("appium:automationName", AutomationName.ANDROID_UIAUTOMATOR2);
+        options.setCapability("appium:appPackage", "com.androidsample.generalstore");
+        options.setCapability("appium:appActivity", "com.androidsample.generalstore.SplashActivity");
+        options.setCapability("appium:appWaitActivity", "com.androidsample.generalstore.*");
+        options.setCapability("appium:autoGrantPermissions", true);
+        options.setCapability("appium:fullReset", false);
+        options.setCapability("appium:clearDeviceLogsOnStart", true);
+
+        if (isCI()) {
+            options.setCapability("appium:ignoreHiddenApiPolicyError", true);
+            options.setCapability("appium:adbExecTimeout", 600_000);
+            options.setCapability("appium:uiautomator2ServerInstallTimeout", 180_000);
+            options.setCapability("appium:uiautomator2ServerLaunchTimeout", 180_000);
+            options.setCapability("appium:newCommandTimeout", 600);
+        } else {
+            options.setCapability("appium:newCommandTimeout", 300);
+        }
+
+        // CI delay
+        if (isCI()) {
+            System.out.println("⏳ Waiting for app to stabilize (CI delay 5s)...");
+            Thread.sleep(5000);
+        }
+
+        String appiumUrl = "http://127.0.0.1:4723/wd/hub";
+        System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
+
+        // Retry driver initialization
+        int retryCount = 0, maxRetries = 3;
+        while (retryCount < maxRetries) {
+            try {
+                driver = new AndroidDriver(new URL(appiumUrl), options);
+                System.out.println("✅ AndroidDriver initialized successfully.");
+                break;
+            } catch (Exception e) {
+                retryCount++;
+                System.out.println("⚠️ Driver init failed (attempt " + retryCount + "/" + maxRetries + "): " + e.getMessage());
+                if (retryCount == maxRetries) throw e;
+                Thread.sleep(10000);
+            }
+        }
+
+        // WebDriverWait
+        int waitSeconds = isCI() ? 60 : 20;
+        wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
+
+        // Check splash screen
+        try {
+            System.out.println("👀 Waiting for splash screen element...");
+            By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
+            wait.until(ExpectedConditions.visibilityOfElementLocated(splashLocator));
+            System.out.println("✅ Splash screen is visible.");
+        } catch (TimeoutException e) {
+            System.out.println("⚠️ Splash screen not found after timeout, continuing anyway.");
+            takeScreenshot("splash_timeout");
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        takeScreenshot("init_error");
+        throw new RuntimeException("❌ Failed to initialize driver: " + e.getMessage(), e);
     }
+}
+
 
     @AfterAll
     static void tearDown() {
