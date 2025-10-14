@@ -11,10 +11,12 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 public class BasePage {
     protected static AndroidDriver driver;
@@ -40,6 +42,46 @@ public class BasePage {
 
     public static AndroidDriver getDriver() {
         return driver;
+    }
+
+    private static boolean isAppiumRunning(String appiumUrl) {
+        try {
+            URL url = new URL(appiumUrl + "/status");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            int responseCode = connection.getResponseCode();
+            if (responseCode == 200) {
+                System.out.println("🌐 Appium server is up!");
+                return true;
+            } else {
+                System.out.println("⚠️ Appium server returned non-OK response: " + responseCode);
+                return false;
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Cannot connect to Appium server: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static boolean isSystemUIResponsive() throws IOException, InterruptedException {
+        Process p = Runtime.getRuntime().exec("adb shell dumpsys window windows | grep -E 'mCurrentFocus'");
+        p.waitFor();
+        String output = new String(p.getInputStream().readAllBytes()).trim();
+        if (output.contains("SystemUI")) {
+            System.out.println("⚠️ System UI freeze detected!");
+            return false;
+        }
+        return true;
+    }
+
+    private static void pressWaitButton() throws IOException, InterruptedException {
+        // Тут натискання кнопки "Wait" через ADB на координати приблизно середини екрана
+        // Можна уточнити координати під ваш розмір емулятора
+        Runtime.getRuntime().exec("adb shell input tap 540 1040");
+        System.out.println("🖱 Pressed 'Wait' button to continue");
+        Thread.sleep(2000); // пауза після натискання
     }
 
     @BeforeAll
@@ -105,9 +147,16 @@ public class BasePage {
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
             System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
 
+            if (!isAppiumRunning(appiumUrl)) {
+                throw new RuntimeException("❌ Appium server is not running at " + appiumUrl);
+            }
+
             int retryCount = 0, maxRetries = 3;
             while (retryCount < maxRetries) {
                 try {
+                    if (!isSystemUIResponsive()) {
+                        pressWaitButton();
+                    }
                     driver = new AndroidDriver(new URL(appiumUrl), options);
                     System.out.println("✅ AndroidDriver initialized successfully.");
                     break;
@@ -115,7 +164,7 @@ public class BasePage {
                     retryCount++;
                     System.out.println("⚠️ Driver init failed (attempt " + retryCount + "/" + maxRetries + "): " + e.getMessage());
                     if (retryCount == maxRetries) throw e;
-                    Thread.sleep(10000);
+                    Thread.sleep(5000);
                 }
             }
 
