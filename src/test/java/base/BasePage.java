@@ -45,6 +45,7 @@ public class BasePage {
     @BeforeAll
     static void setup() {
         try {
+            // APK path
             String apkPath = System.getenv("APK_PATH");
             if (apkPath == null || apkPath.isEmpty()) {
                 apkPath = System.getProperty("user.dir") + "/app/General-Store.apk";
@@ -54,6 +55,7 @@ public class BasePage {
             }
             System.out.println("📦 Using APK path: " + apkPath);
 
+            // UiAutomator2Options with W3C Appium capabilities
             UiAutomator2Options options = new UiAutomator2Options()
                     .setDeviceName("emulator-5554")
                     .setApp(apkPath)
@@ -63,21 +65,21 @@ public class BasePage {
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
                     .eventTimings();
 
-            // CI-specific tuning
+            // CI-specific capabilities
             if (isCI()) {
                 System.out.println("🏗️ Running in CI mode: applying stability and timeouts...");
                 options.setCapability("appium:ignoreHiddenApiPolicyError", true);
-                options.setCapability("adbExecTimeout", 600000);
-                options.setCapability("uiautomator2ServerInstallTimeout", 180000);
-                options.setCapability("uiautomator2ServerLaunchTimeout", 180000);
-                options.setCapability("newCommandTimeout", 600);
-                options.setCapability("fullReset", false);
-                options.setCapability("autoGrantPermissions", true);
+                options.setCapability("appium:adbExecTimeout", 600000);
+                options.setCapability("appium:uiautomator2ServerInstallTimeout", 180000);
+                options.setCapability("appium:uiautomator2ServerLaunchTimeout", 180000);
+                options.setCapability("appium:newCommandTimeout", 600);
+                options.setCapability("appium:fullReset", false);
+                options.setCapability("appium:autoGrantPermissions", true);
                 options.setCapability("appium:clearDeviceLogsOnStart", true);
             } else {
-                options.setCapability("fullReset", false);
-                options.setCapability("autoGrantPermissions", true);
-                options.setCapability("newCommandTimeout", 300);
+                options.setCapability("appium:fullReset", false);
+                options.setCapability("appium:autoGrantPermissions", true);
+                options.setCapability("appium:newCommandTimeout", 300);
             }
 
             // CI delay
@@ -104,10 +106,10 @@ public class BasePage {
                 }
             }
 
-            int waitSeconds = isCI() ? 60 : 20; // збільшено для CI
+            int waitSeconds = isCI() ? 60 : 20;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
-            // Очікування сплеш-екрану через конкретний елемент (замініть на ваш елемент)
+            // Очікування splash screen
             try {
                 System.out.println("👀 Waiting for splash screen element...");
                 By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
