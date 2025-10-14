@@ -70,18 +70,16 @@ jobs:
             adb shell input keyevent 82
             echo "✅ Emulator ready!"
             adb devices
-            adb shell am start -n com.androidsample.generalstore/com.androidsample.generalstore.SplashActivity
             echo "Cleaning Appium cache and temp folders..."
             rm -rf /tmp/appium* || true
             rm -rf ~/.cache/appium || true
-            rm -rf $GITHUB_WORKSPACE/*.apk || true
             rm -rf $GITHUB_WORKSPACE/appium_logs || true
             echo "📸 Starting Appium server..."
             appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
             APPIUM_PID=$!
-            echo "Waiting for Appium to start..."; for i in {1..30}; do if curl -s http://localhost:4723/wd/hub/status > /dev/null; then echo "✅ Appium server is ready!"; break; fi; echo "Waiting for Appium... attempt $i/30"; sleep 2; done
+            echo "Waiting for Appium to start..."; for i in $(seq 1 30); do if curl -s http://localhost:4723/wd/hub/status > /dev/null; then echo "✅ Appium server is ready!"; break; fi; echo "Waiting for Appium... attempt $i/30"; sleep 2; done
             echo "🔎 Checking current resumed activity..."
-            for i in {1..15}; do
+            for i in $(seq 1 15); do
               activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true)
               if [ -n "$activity" ]; then
                 echo "🎯 Active: $activity"
@@ -97,6 +95,7 @@ jobs:
             if [ -f appium.log ]; then echo "📋 Appium logs (last 50 lines):"; tail -50 appium.log; fi
             if [ -d "target/allure-results" ]; then echo "✅ Test results found in target/allure-results"; ls -la target/allure-results/; else echo "⚠️ No test results found in target/allure-results"; mkdir -p target/allure-results; echo '{}' > target/allure-results/dummy.json; fi
             exit ${TEST_EXIT_CODE:-0}
+            
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
