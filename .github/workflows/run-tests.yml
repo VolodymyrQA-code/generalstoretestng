@@ -57,10 +57,18 @@ jobs:
       - name: 🧰 Set up Android SDK
         uses: android-actions/setup-android@v2
         with:
-          api-level: 30
+          api-level: 31
           target: default
           arch: x86
           build-tools: 35.0.0
+
+      - name: 💾 Cache AVD
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/avd
+          key: ${{ runner.os }}-avd-${{ hashFiles('**/emulator-config') }}
+          restore-keys: |
+            ${{ runner.os }}-avd-
 
       - name: 🚀 Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -68,10 +76,9 @@ jobs:
           api-level: 31
           target: google_apis
           arch: x86_64
-          profile: pixel_4
+          profile: Nexus 5
           headless: true
           disable-animations: true
-          emulator-options: -memory 1536 -no-snapshot -no-boot-anim -gpu swiftshader_indirect
           emulator-boot-timeout: 1200
           script: |
             set -e
