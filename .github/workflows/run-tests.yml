@@ -7,7 +7,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 50
 
     steps:
       - name: Checkout repository
@@ -42,11 +42,18 @@ jobs:
 
       - name: Install Appium
         run: |
-          npm install -g appium@3.0.2; appium driver install uiautomator2
+          npm install -g appium@3.0.2
+          appium driver install uiautomator2
 
       - name: Check APK
         run: |
-          APK_PATH="$GITHUB_WORKSPACE/app/General-Store.apk"; [ -f "$APK_PATH" ] || { echo "❌ APK not found"; exit 1; }; echo "📦 APK path: $APK_PATH"; file "$APK_PATH"; unzip -t "$APK_PATH" || { echo "❌ APK is corrupted"; exit 1; }; echo "🔍 Checking activities in APK:"; aapt dump badging "$APK_PATH" | grep launchable-activity
+          APK_PATH="$GITHUB_WORKSPACE/app/General-Store.apk"
+          [ -f "$APK_PATH" ] || { echo "❌ APK not found at $APK_PATH"; exit 1; }
+          echo "📦 Checking APK format..."
+          file "$APK_PATH"
+          unzip -t "$APK_PATH" || { echo "❌ APK is corrupted"; exit 1; }
+          echo "🔍 Checking activities in APK..."
+          apkanalyzer manifest activities "$APK_PATH"
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -58,7 +65,7 @@ jobs:
           disable-animations: true
           emulator-options: -gpu swiftshader_indirect
           script: |
-            set -e; export CI=true; echo "🕓 Booting emulator..."; timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done; adb shell settings put global window_animation_scale 0.0; adb shell settings put global transition_animation_scale 0.0; adb shell settings put global animator_duration_scale 0.0; adb shell input keyevent 82; echo "✅ Emulator ready!"; adb devices; echo "📸 Screenshot & page source after boot"; adb exec-out screencap -p > boot_screen.png; adb shell uiautomator dump /sdcard/boot_dump.xml; adb pull /sdcard/boot_dump.xml ./boot_dump.xml; echo "🌐 Launching app..."; adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"; sleep 5; adb shell am start -n com.android.generalstore/.SplashActivity; echo "✅ App launched"; echo "⏳ Waiting app to stabilize..."; sleep 10; echo "Waiting for Appium..."; for i in $(seq 1 60); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium ready!" && break; echo "Waiting Appium $i/60"; sleep 2; done; echo "🔎 Checking resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting resumed activity $i/15"; sleep 4; i=$((i + 1)); done; echo "🧪 Running Maven tests..."; adb shell dumpsys activity activities | grep "ResumedActivity"; mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?; echo "🧹 Stopping Appium..."; [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true; [ -f appium.log ] && echo "📋 Appium logs (last 50 lines):" && tail -50 appium.log; [ -d "target/allure-results" ] && echo "✅ Test results found" && ls -la target/allure-results/ || { echo "⚠️ No results, creating dummy"; mkdir -p target/allure-results; echo '{}' > target/allure-results/dummy.json; }; exit ${TEST_EXIT_CODE:-0}
+            set -e; export CI=true; echo "🕓 Booting emulator..."; timeout=300; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done; adb shell settings put global window_animation_scale 0.0; adb shell settings put global transition_animation_scale 0.0; adb shell settings put global animator_duration_scale 0.0; adb shell input keyevent 82; echo "✅ Emulator ready!"; adb devices; echo "📸 Taking screenshot & page source after boot..."; adb exec-out screencap -p > $GITHUB_WORKSPACE/target/screenshots/boot_screen.png; adb shell uiautomator dump /sdcard/boot_page.xml; adb pull /sdcard/boot_page.xml $GITHUB_WORKSPACE/target/screenshots/boot_page.xml; echo "Cleaning Appium cache..."; rm -rf /tmp/appium* ~/.cache/appium $GITHUB_WORKSPACE/appium_logs || true; echo "📸 Starting Appium server..."; appium --base-path /wd/hub --log-level info > appium.log 2>&1 & APPIUM_PID=$!; echo "🌐 Launching app..."; adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"; adb shell am start -n com.android.generalstore/.SplashActivity; echo "✅ App launched"; echo "Waiting for Appium..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium ready!" && break; echo "Waiting Appium $i/30"; sleep 2; done; echo "🔎 Checking resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting resumed activity $i/15"; sleep 4; i=$((i + 1)); done; echo "🧪 Running Maven tests..."; adb shell dumpsys activity activities | grep "ResumedActivity"; mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?; echo "🧹 Stopping Appium..."; [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true; [ -f appium.log ] && echo "📋 Appium logs (last 50 lines):" && tail -50 appium.log; [ -d "target/allure-results" ] && echo "✅ Test results found" && ls -la target/allure-results/ || { echo "⚠️ No results, creating dummy"; mkdir -p target/allure-results; echo '{}' > target/allure-results/dummy.json; }; exit ${TEST_EXIT_CODE:-0}
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
