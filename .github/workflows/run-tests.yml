@@ -62,9 +62,9 @@ jobs:
           arch: x86
           profile: pixel_4
           disable-animations: true
-          ram-size: 3072M
-          heap-size: 1024M
-          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
+          ram-size: 2048M
+          heap-size: 512M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
           script: |
             set -e
             export CI=true
