@@ -89,14 +89,10 @@ jobs:
             appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
             APPIUM_PID=$!
 
-            adb wait-for-device
-            sleep 20
-            adb shell input keyevent 82
-
-            echo "Installing APK (safe mode)..."
-            adb push "$GITHUB_WORKSPACE/app/General-Store.apk" /data/local/tmp/General-Store.apk
-            adb shell pm install -r /data/local/tmp/General-Store.apk
-
+            echo "🌐 Launching app..."
+            adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
+            adb shell am start -n com.android.generalstore/.SplashActivity
+            echo "✅ App launched"
 
             echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done;
 
@@ -114,30 +110,26 @@ jobs:
           name: screenshots
           path: target/screenshots/
 
-      - name: 📊 Generate Allure report
+      - name: Generate Allure report
         if: always()
         run: |
           if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then
-            echo "📈 Generating Allure report with CLI..."
-            sudo apt-get update -y
-            wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.tgz
-            sudo tar -zxvf allure-2.30.0.tgz -C /opt/
-            sudo ln -s /opt/allure-2.30.0/bin/allure /usr/bin/allure
-            allure generate target/allure-results -o target/site/allure-report --clean
+            echo "📊 Generating Allure report..."
+            rm -rf target/site/allure-maven-plugin || true
+            mvn -B allure:report
           else
-            echo "⚠️ No test results found for Allure"
-            mkdir -p target/site/allure-report
-            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-report/index.html
+            echo "⚠️ No test results to generate report from"
+            mkdir -p target/site/allure-maven-plugin
+            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html
           fi
 
-      - name: 📦 Upload Allure report
+      - name: Upload Allure report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
-          path: target/site/allure-report/
+          path: target/site/allure-maven-plugin/
           if-no-files-found: warn
-
 
       - name: Upload test logs
         if: failure()
@@ -148,3 +140,13 @@ jobs:
             appium.log
             target/surefire-reports/
           if-no-files-found: ignore
+
+
+
+
+
+
+
+
+
+
