@@ -16,6 +16,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Arrays;
 
 public class BasePage {
     protected static AndroidDriver driver;
@@ -40,8 +41,25 @@ public class BasePage {
     }
 
     public static AndroidDriver getDriver() {
-    return driver;
-}
+        return driver;
+    }
+
+    private static String getConnectedDevice() throws IOException, InterruptedException {
+        Process process = Runtime.getRuntime().exec("adb devices");
+        process.waitFor();
+        String output = new String(process.getInputStream().readAllBytes()).trim();
+        System.out.println("📱 Connected devices:\n" + output);
+
+        for (String line : output.split("\n")) {
+            if (line.endsWith("\tdevice") && !line.startsWith("List of devices")) {
+                String deviceName = line.split("\t")[0];
+                System.out.println("✅ Using device: " + deviceName);
+                return deviceName;
+            }
+        }
+
+        throw new RuntimeException("❌ No connected devices found via ADB!");
+    }
 
     private static boolean isAppiumRunning(String appiumUrl) {
         try {
@@ -111,47 +129,19 @@ public class BasePage {
             }
             System.out.println("📦 Using APK path: " + apkPath);
 
-            // === Перевірка емулятора ===
-            if (isCI()) {
-                System.out.println("🕓 Checking for emulator...");
-                int timeout = 300;
-                int elapsed = 0;
-                while (true) {
-                    Process p = Runtime.getRuntime().exec("adb shell getprop sys.boot_completed");
-                    p.waitFor();
-                    String output = new String(p.getInputStream().readAllBytes()).trim();
-                    if ("1".equals(output)) break;
-                    if (elapsed >= timeout) throw new RuntimeException("❌ Timeout waiting for emulator to boot");
-                    System.out.println("⏳ Waiting for emulator to boot... " + elapsed + "s");
-                    Thread.sleep(5000);
-                    elapsed += 5;
-                }
-                System.out.println("✅ Emulator booted!");
-            }
+            // === Отримання підключеного пристрою ===
+            String deviceName = getConnectedDevice();
 
-            // === Перевірка підключених пристроїв ===
-            System.out.println("🔍 Checking connected devices...");
-            Process listDevices = Runtime.getRuntime().exec("adb devices");
-            listDevices.waitFor();
-            String devices = new String(listDevices.getInputStream().readAllBytes()).trim();
-            System.out.println("📱 Connected devices:\n" + devices);
-            if (!devices.contains("emulator-5554")) {
-                throw new RuntimeException("❌ Emulator device not found via ADB!");
-            }
-
-            // === Перевірка System UI перед підключенням ===
-            if (isCI()) {
-                if (!isSystemUIResponsive()) {
-                    System.out.println("⚠️ SystemUI detected before Appium connect — pressing Wait...");
-                    pressWaitButton();
-                    Thread.sleep(2000);
-                }
+            // === Перевірка System UI на CI ===
+            if (isCI() && !isSystemUIResponsive()) {
+                System.out.println("⚠️ SystemUI detected before Appium connect — pressing Wait...");
+                pressWaitButton();
             }
 
             // === Налаштування UiAutomator2Options ===
             UiAutomator2Options options = new UiAutomator2Options()
                     .setApp(apkPath)
-                    .setDeviceName("emulator-5554")
+                    .setDeviceName(deviceName)
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
                     .setAppPackage("com.androidsample.generalstore")
                     .setAppActivity("com.androidsample.generalstore.SplashActivity")
@@ -165,12 +155,6 @@ public class BasePage {
                 options.setNewCommandTimeout(Duration.ofSeconds(600));
             }
 
-            // === Невелика пауза для стабілізації ===
-            if (isCI()) {
-                System.out.println("⏳ Waiting for app to stabilize (CI delay 5s)...");
-                Thread.sleep(5000);
-            }
-
             // === Підключення до Appium ===
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
             System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
@@ -182,7 +166,7 @@ public class BasePage {
             // === Очікування активної Activity перед стартом ===
             waitForResumedActivity();
 
-            // === Ініціалізація драйвера ===
+            // === Ініціалізація драйвера з ретраєм ===
             int retryCount = 0, maxRetries = 3;
             while (retryCount < maxRetries) {
                 try {

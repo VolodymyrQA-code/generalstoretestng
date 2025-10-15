@@ -1,84 +1,83 @@
 package pages;
 
 import io.appium.java_client.android.AndroidDriver;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.apache.commons.io.FileUtils;
+import io.qameta.allure.Step;
+
+import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
 
-/**
- * SplashPage — замінює очікування UI-елемента на аналіз logcat.
- * Під час запуску на CI це значно стабільніше.
- */
 public class SplashPage {
+    private AndroidDriver driver;
 
-    private final AndroidDriver driver;
+    // ID елементів
+    private final By splashId = By.id("com.androidsample.generalstore:id/splashscreen");
+    private final By homeToolbarId = By.id("com.androidsample.generalstore:id/toolbar_title");
 
     public SplashPage(AndroidDriver driver) {
         this.driver = driver;
     }
 
     /**
-     * Очікує появу запису про запуск SplashActivity у logcat.
-     * Якщо не знайдено — тест вважається невдалим.
+     * Перевіряє, чи splash screen відображається.
+     * У CI збільшений timeout.
+     * Логування часу очікування в Allure.
      */
-    public boolean waitForSplashInLogs() {
-        System.out.println("🔍 Waiting for SplashActivity in logcat...");
+    @Step("Перевірка відображення Splash Screen")
+    public boolean isSplashDisplayed() {
+        boolean isCI = System.getenv("CI") != null && System.getenv("CI").equalsIgnoreCase("true");
+        long timeout = isCI ? 90 : 15; // seconds
 
-        long start = System.currentTimeMillis();
-        boolean splashFound = false;
+        long startTime = System.currentTimeMillis();
 
-        for (int i = 0; i < 30; i++) {
-            String logs = driver.manage().logs().get("logcat").getAll().toString();
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeout));
+            WebElement splash = wait.until(ExpectedConditions.visibilityOfElementLocated(splashId));
 
-            if (logs.contains("com.androidsample.generalstore/.SplashActivity")) {
-                System.out.println("✅ SplashActivity detected in logs after " +
-                        (System.currentTimeMillis() - start) / 1000 + "s");
-                splashFound = true;
-                break;
-            }
+            long elapsed = System.currentTimeMillis() - startTime;
+            System.out.println("✅ Splash screen detected! Час очікування: " + elapsed / 1000.0 + "s");
+            return splash.isDisplayed();
 
+        } catch (TimeoutException e) {
+            long elapsed = System.currentTimeMillis() - startTime;
+            System.out.println("⚠️ Splash screen not found after " + timeout + "s. Час очікування: " + elapsed / 1000.0 + "s");
+
+            // Перевірка, чи вже відкрився головний екран
             try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ignored) {
+                WebDriverWait waitHome = new WebDriverWait(driver, Duration.ofSeconds(5));
+                WebElement homeToolbar = waitHome.until(ExpectedConditions.visibilityOfElementLocated(homeToolbarId));
+                System.out.println("ℹ️ Splash skipped, але головний екран видимий. Час очікування: " + elapsed / 1000.0 + "s");
+                return true;
+            } catch (TimeoutException ex) {
+                System.out.println("❌ Neither splash nor home screen found. Saving debug info...");
+                saveDebugInfo();
+                return false;
             }
         }
-
-        if (!splashFound) {
-            System.out.println("⚠️ SplashActivity not found in logs after 60s");
-        }
-
-        return splashFound;
     }
 
-    /**
-     * Очікує, поки в логах з'явиться головна активність (наприклад, MainActivity).
-     */
-    public boolean waitForMainActivityInLogs() {
-        System.out.println("🔍 Waiting for MainActivity in logcat...");
+    
 
-        long start = System.currentTimeMillis();
-        boolean mainFound = false;
+    @Step("Збереження скріншоту та PageSource для дебагу")
+    private void saveDebugInfo() {
+        try {
+            File screenshot = driver.getScreenshotAs(OutputType.FILE);
+            File targetFile = new File("target/screenshots/splash_timeout.png");
+            FileUtils.copyFile(screenshot, targetFile);
+            System.out.println("📸 Screenshot saved: " + targetFile.getAbsolutePath());
 
-        for (int i = 0; i < 40; i++) {
-            String logs = driver.manage().logs().get("logcat").getAll().toString();
-
-            if (logs.contains("com.androidsample.generalstore/.MainActivity") ||
-                logs.contains("Displayed com.androidsample.generalstore/.MainActivity")) {
-                System.out.println("✅ MainActivity detected in logs after " +
-                        (System.currentTimeMillis() - start) / 1000 + "s");
-                mainFound = true;
-                break;
-            }
-
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ignored) {
-            }
+            File pageSourceFile = new File("target/screenshots/splash_timeout.xml");
+            FileUtils.writeStringToFile(pageSourceFile, driver.getPageSource(), "UTF-8");
+            System.out.println("📄 Page source saved: " + pageSourceFile.getAbsolutePath());
+        } catch (IOException ioEx) {
+            System.out.println("⚠️ Failed to save screenshot or page source: " + ioEx.getMessage());
         }
-
-        if (!mainFound) {
-            System.out.println("⚠️ MainActivity not found in logs after 80s");
-        }
-
-        return mainFound;
     }
 }

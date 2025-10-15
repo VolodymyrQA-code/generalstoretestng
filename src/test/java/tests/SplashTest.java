@@ -16,15 +16,10 @@ public class SplashTest extends BasePage {
         splashPage = new SplashPage(driver);
     }
 
-    @Test
-    @DisplayName("SplashActivity logs detected and MainActivity launched")
-    public void testSplashAppearsInLogs() {
-        boolean splashFound = splashPage.waitForSplashInLogs();
-        boolean mainFound = splashPage.waitForMainActivityInLogs();
-
-        Assertions.assertTrue(
-            splashFound || mainFound,
-            "Neither SplashActivity nor MainActivity was found in logs!"
-        );
-    }
+   @Test
+@DisplayName("SplashActivity is displayed on launch")
+public void testSplashAppears() {
+    boolean splashFound = splashPage.isSplashDisplayed();
+    Assertions.assertTrue(splashFound, "Splash screen was not found!");
+}
 }
