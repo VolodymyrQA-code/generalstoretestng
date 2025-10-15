@@ -59,7 +59,7 @@ jobs:
         with:
           api-level: 29
           target: google_apis
-          arch: x86_64
+          arch: x86
           profile: pixel_4
           disable-animations: true
           disable-linux-hw-accel: true
@@ -84,9 +84,7 @@ jobs:
             rm -rf ~/.cache/appium || true
             rm -rf $GITHUB_WORKSPACE/appium_logs || true
 
-            echo "📸 Starting Appium server..."
-            appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
-            APPIUM_PID=$!
+            echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done; echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done
 
             echo "🌐 Launching app..."
             adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
