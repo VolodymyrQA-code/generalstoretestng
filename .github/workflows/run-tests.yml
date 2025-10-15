@@ -100,10 +100,11 @@ jobs:
             echo "🌐 Installing APK..."
             adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
 
-            # ⚠️ ДОДАТОК: Як знайти стартову Activity
-            echo "🔍 Determining launcher/start Activity..."
-            adb shell cmd package resolve-activity --brief com.androidsample.generalstore | tail -n 1
-            echo "⚠️ Після цього можна взяти правильну Activity і вставити у YAML у рядку старту"
+            # ⚠️ ДОДАНО: Знайти фактичну стартову Activity через dumpsys
+            echo "🔍 Listing all activities for com.androidsample.generalstore..."
+            adb shell cmd package resolve-activity --brief com.androidsample.generalstore | tail -n 1 || true
+            echo "🔍 Searching for MAIN/LAUNCHER activity..."
+            adb shell dumpsys package com.androidsample.generalstore | grep -A 10 "intent-filter" | grep -E "Activity|action.MAIN|category.LAUNCHER" || echo "⚠️ MAIN/LAUNCHER activity not found"
 
             echo "🚀 Starting app and waiting for SplashActivity..."
             adb shell am start -W -n com.androidsample.generalstore/.SplashActivity
