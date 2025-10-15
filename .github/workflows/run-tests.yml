@@ -95,16 +95,24 @@ jobs:
 
             echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done; echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done
 
+            echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done
+
             echo "🌐 Installing APK..."
             adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
 
-             echo "🚀 Starting app and waiting for SplashActivity..."
+            # ⚠️ ДОДАТОК: Як знайти стартову Activity
+            echo "🔍 Determining launcher/start Activity..."
+            adb shell cmd package resolve-activity --brief com.androidsample.generalstore | tail -n 1
+            echo "⚠️ Після цього можна взяти правильну Activity і вставити у YAML у рядку старту"
+
+            echo "🚀 Starting app and waiting for SplashActivity..."
             adb shell am start -W -n com.androidsample.generalstore/.SplashActivity
+            timeout=60; until adb shell dumpsys activity activities | grep -q "mResumedActivity.*com.androidsample.generalstore" || [ $timeout -le 0 ]; do echo "⏳ Waiting for app foreground..."; sleep 2; timeout=$((timeout-1)); done; [ $timeout -le 0 ] && echo "❌ App never resumed" && exit 1; echo "✅ App is in foreground"
 
-            echo "🕓 Waiting for app to be in foreground..."; timeout=60; until adb shell dumpsys activity activities | grep -q "mResumedActivity.*com.androidsample.generalstore" || [ $timeout -le 0 ]; do echo "⏳ Waiting for app foreground..."; sleep 2; timeout=$((timeout-1)); done; [ $timeout -le 0 ] && echo "❌ App never resumed" && exit 1
-            echo "✅ App is in foreground"
-
-            echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done;
+            # ⚠️ ЗМІНА: Об’єднаний однорядковий блок очікування foreground
+            echo "🚀 Starting app and waiting for foreground..."
+            adb shell am start -W -n com.androidsample.generalstore/.SplashActivity
+            timeout=60; until adb shell dumpsys activity activities | grep -q "mResumedActivity.*com.androidsample.generalstore" || [ $timeout -le 0 ]; do echo "⏳ Waiting for app foreground..."; sleep 2; timeout=$((timeout-1)); done; [ $timeout -le 0 ] && echo "❌ App never resumed" && exit 1; echo "✅ App is in foreground"
 
             echo "🧪 Running Maven tests..."
             adb shell dumpsys activity activities | grep "ResumedActivity"
