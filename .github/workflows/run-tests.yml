@@ -54,6 +54,14 @@ jobs:
           file "$APK_PATH"
           unzip -t "$APK_PATH" || (echo "❌ APK is corrupted"; exit 1)
 
+      - name: Start Appium server
+        run: |
+          echo "🚀 Starting Appium server..."
+          nohup appium --log appium.log --base-path /wd/hub > /dev/null 2>&1 &
+          sleep 10
+          curl -s http://127.0.0.1:4723/wd/hub/status || echo "⚠️ Appium may not be fully up yet"
+
+
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
