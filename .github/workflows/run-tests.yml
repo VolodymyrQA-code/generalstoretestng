@@ -64,21 +64,17 @@ jobs:
           disable-animations: true
           ram-size: 2048M
           heap-size: 512M
-          emulator-options: -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
+          emulator-options: -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
           script: |
             set -e
             export CI=true
-            echo "🕓 Booting emulator..."; timeout=700; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done;
+            echo "🕓 Booting emulator..."; timeout=600; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done;
             echo "✅ Emulator boot completed"
 
             echo "🔧 Disabling animations..."
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0
-
-            echo "📱 Unlocking screen..."
-            adb shell input keyevent 82
-            adb devices
 
             echo "Cleaning Appium cache and temp folders..."
             rm -rf /tmp/appium* || true
@@ -90,25 +86,13 @@ jobs:
             APPIUM_PID=$!
 
             echo "🌐 Launching app..."
-            adb push "$GITHUB_WORKSPACE/app/General-Store.apk" /data/local/tmp/General-Store.apk
-            adb shell pm install -r /data/local/tmp/General-Store.apk
-
-
-            # Витягуємо фактичний package name із APK
-            PKG=$(aapt dump badging "$GITHUB_WORKSPACE/app/General-Store.apk" | awk -F"'" '/package: name=/{print $2}')
-            echo "📦 Detected package: $PKG"
-
-            # Запускаємо головну Activity автоматично
-            adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1
-            echo "✅ App launched (package: $PKG)"
+            adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
+            adb shell am start -n com.android.generalstore/.SplashActivity
+            echo "✅ App launched"
 
             echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done;
 
             echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done;
-            
-            aapt dump badging "$GITHUB_WORKSPACE/app/General-Store.apk" | grep package:
-            aapt dump badging "$GITHUB_WORKSPACE/app/General-Store.apk" | grep launchable-activity
-            adb shell dumpsys activity activities | grep "ResumedActivity"
 
             echo "🧪 Running Maven tests..."
             adb shell dumpsys activity activities | grep "ResumedActivity"
@@ -122,26 +106,31 @@ jobs:
           name: screenshots
           path: target/screenshots/
 
-      - name: Generate Allure report
+      - name: 📊 Generate Allure report
         if: always()
         run: |
           if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then
-            echo "📊 Generating Allure report..."
-            rm -rf target/site/allure-maven-plugin || true
-            mvn -B allure:report
+            echo "📈 Generating Allure report with CLI..."
+            sudo apt-get update -y
+            wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.tgz
+            sudo tar -zxvf allure-2.30.0.tgz -C /opt/
+            sudo ln -s /opt/allure-2.30.0/bin/allure /usr/bin/allure
+            allure generate target/allure-results -o target/site/allure-report --clean
           else
-            echo "⚠️ No test results to generate report from"
-            mkdir -p target/site/allure-maven-plugin
-            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html
+            echo "⚠️ No test results found for Allure"
+            mkdir -p target/site/allure-report
+            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-report/index.html
           fi
 
-      - name: Upload Allure report
+
+      - name: 📦 Upload Allure report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
-          path: target/site/allure-maven-plugin/
+          path: target/site/allure-report/
           if-no-files-found: warn
+
 
       - name: Upload test logs
         if: failure()
@@ -152,13 +141,3 @@ jobs:
             appium.log
             target/surefire-reports/
           if-no-files-found: ignore
-
-
-
-
-
-
-
-
-
-
