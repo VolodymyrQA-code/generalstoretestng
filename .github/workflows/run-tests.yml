@@ -57,14 +57,15 @@ jobs:
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 33
           target: google_apis
-          arch: x86
-          profile: pixel_4
+          arch: x86_64
+          profile: pixel_7
           disable-animations: true
+          disable-linux-hw-accel: true
           ram-size: 2048M
           heap-size: 512M
-          emulator-options: -gpu swiftshaderdirect -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
+          emulator-options: -gpu swiftshaderdirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: |
             set -e
             export CI=true
