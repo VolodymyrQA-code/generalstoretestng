@@ -65,7 +65,7 @@ jobs:
           disable-linux-hw-accel: true
           ram-size: 2048M
           heap-size: 512M
-          emulator-options: -gpu swiftshaderdirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          emulator-options: -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: |
             set -e
             export CI=true
