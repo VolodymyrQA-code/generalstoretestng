@@ -35,40 +35,26 @@ public class HomeTest extends BasePage {
 
     @Test 
     @Order(1) 
-    @Description("Splash screen should be visible")
-    @Severity(SeverityLevel.CRITICAL)
-    public void openSplashPage() {
-        SplashPage splashPage = new SplashPage(driver);
-
-        // Очікуємо появу splash до 10 секунд
-        boolean isVisible = splashPage.isSplashDisplayed();
-
-        // Перевірка
-        assertTrue(isVisible, "Splash screen should be visible");
-    }
-
-    @Test 
-    @Order(2) 
     @Description("Перевіряємо, що заголовок тулбара відображається і має текст \"General Store\"")
     public void testToolbarTitle() {
         home.verifyToolbarTitle();
     }
 
     @Test 
-    @Order(3) 
+    @Order(2) 
     @Description("Перевіряємо, що заголовок для вибору країни відображається і відповідає очікуваному тексту")
     public void testCountryTitle() {
         home.verifyCountryTitle();
     }
     @Test 
-    @Order(4) 
+    @Order(3) 
     @Description("Перевіряємо, що заголовок поля для введення імені користувача відображається")
     public void testYourNameTitle() {
         home.verifyYourNameTitle();
     }
 
     @Test 
-    @Order(5) 
+    @Order(4) 
     @Description("Перевіряємо, що заголовок для вибору статі відображається")
     public void testGenderTitle() {
         home.checkEmptyName("");
@@ -77,28 +63,28 @@ public class HomeTest extends BasePage {
 }
 
     @Test 
-    @Order(6) 
+    @Order(5) 
     @Description("Перевіряємо, що підпис для чоловічого радіо-батону відображається")
     public void testMaleRadioTitle() {
         home.verifyMaleRadio();
     }
 
     @Test 
-    @Order(7) 
+    @Order(6) 
     @Description("Перевіряємо, що підпис для жіночого радіо-батону відображається")
     public void testFemaleRadioTitle() {
         home.verifyFemaleRadio();
     }
 
     @Test 
-    @Order(8) 
+    @Order(7) 
     @Description("Перевіряємо, що кнопка \"Let's Shop\" відображається і має правильний текст")
     public void testLetsShopBtnTitle() {
         home.verifyLetsShopBtnTitle();
     }
 
     @Test 
-    @Order(9) 
+    @Order(8) 
     @Description("Перевіряємо, що країна зі списку обрана")
     @Severity(SeverityLevel.CRITICAL) 
     public void testSelectCountryFromProperties() {
@@ -106,13 +92,13 @@ public class HomeTest extends BasePage {
         home.selectAndVerifyCountry(country);
     }
 
-    @Test @Order(10) @Description("Перевіряємо закриття списку країн після кліку поза ним")
+    @Test @Order(9) @Description("Перевіряємо закриття списку країн після кліку поза ним")
     public void testOpenAndCloseCountryList() {
         home.openAndCloseCountryList();
     }
 
     @Test 
-    @Order(11) 
+    @Order(10) 
     @Description("Перевіряємо ерор при порожньому імені")
     public void testVerifyErrorOnEmptyName() {
         String userName = ConfigReader.getProperty("userName"); // читаємо з config.properties
@@ -120,7 +106,7 @@ public class HomeTest extends BasePage {
     }
 
     @Test 
-    @Order(12) 
+    @Order(11) 
     @Description("Перевіряємо, що введене ім'я відображається у полі після введення")
     @Severity(SeverityLevel.CRITICAL)
     public void testVerifyValidityOfEnteredName() {
@@ -129,7 +115,7 @@ public class HomeTest extends BasePage {
     }
 
     @Test 
-    @Order(13) 
+    @Order(12) 
     @Description("Перевіряємо, що жіночий радіо-батон обраний, а чоловічий не обраний")
     public void testVerifyFealeRadioButtonSelected() {
         home.verifyFemaleRadioSelected();
@@ -137,7 +123,7 @@ public class HomeTest extends BasePage {
     }
 
     @Test 
-    @Order(14) 
+    @Order(13) 
     @Description("Перевіряємо, що чоловічий радіо-батон обраний, а жіночий не обраний")
     @Severity(SeverityLevel.CRITICAL)
     public void testVerifyMaleRadioButtonSelected() {

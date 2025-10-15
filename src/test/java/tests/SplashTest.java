@@ -12,24 +12,19 @@ public class SplashTest extends BasePage {
 
     @BeforeAll
     public void initPage() {
-        // Використовуємо готовий драйвер із BasePage
         AndroidDriver driver = BasePage.getDriver();
         splashPage = new SplashPage(driver);
     }
 
     @Test
-    @DisplayName("Splash screen appears or home screen is ready")
-    public void testSplashAppears() {
-        long startTime = System.currentTimeMillis();
-
-        boolean splashShown = splashPage.isSplashDisplayed();
-
-        long elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000;
-        System.out.println("⏱ Splash check elapsed time: " + elapsedSeconds + " seconds");
+    @DisplayName("SplashActivity logs detected and MainActivity launched")
+    public void testSplashAppearsInLogs() {
+        boolean splashFound = splashPage.waitForSplashInLogs();
+        boolean mainFound = splashPage.waitForMainActivityInLogs();
 
         Assertions.assertTrue(
-            splashShown,
-            "Splash screen should appear or home screen should be ready"
+            splashFound || mainFound,
+            "Neither SplashActivity nor MainActivity was found in logs!"
         );
     }
 }

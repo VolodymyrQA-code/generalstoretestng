@@ -66,11 +66,10 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          target: google_apis
+          target: default
           arch: x86
           profile: pixel_4
           disable-animations: true
-          disable-linux-hw-accel: true
           ram-size: 2048M
           heap-size: 512M
           script: |
