@@ -69,8 +69,11 @@ jobs:
           script: |
             set -e
             export CI=true
-            echo "🕓 Booting emulator..."; timeout=600; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done;
-            echo "✅ Emulator boot completed"
+            echo "🕓 Waiting for emulator device to appear..."
+            adb start-server && for i in $(seq 1 60); do adb devices | grep "emulator-" && echo "✅ Emulator device detected" && break || echo "⏳ Emulator not visible yet... ($i/60)"; sleep 5; done
+
+            echo "🕓 Booting emulator and waiting for Android OS..."
+            timeout=600; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && adb devices && exit 1; echo "Waiting for boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done
 
             echo "🔧 Disabling animations..."
             adb shell settings put global window_animation_scale 0
