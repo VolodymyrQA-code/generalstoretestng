@@ -100,30 +100,15 @@ jobs:
             echo "🌐 Installing APK..."
             adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
 
-            # ⚠️ ДОДАНО: показати всі встановлені пакети, щоб знайти точну назву
-            echo "🔎 Listing all installed packages related to 'generalstore'..."
-            adb shell pm list packages | grep generalstore || echo "⚠️ No packages matching 'generalstore' found"
+            echo "🔍 Checking installed package name..."
+            adb shell pm list packages | grep generalstore || echo "⚠️ Package not found!"
 
-            # ⚠️ ДОДАНО: вивести повний опис пакета, щоб знайти Activities
-            echo "📦 Dumping package info (may be long)..."
-            adb shell dumpsys package | grep -A 15 "generalstore" || echo "⚠️ Could not dump package info"
-
-            # ⚠️ ДОДАНО: альтернативна команда для пошуку Activity у manifest
-            echo "🔍 Checking manifest for activities..."
-            adb shell pm dump com.androidsample.generalstore | grep -A 20 "Activity" || echo "⚠️ No activity info found"
-
-            echo "⚠️ After this run, check the logs above — find the correct package/activity name and replace it below."
-            echo "🚀 Trying to start app (temporary SplashActivity test)..."
-            adb shell am start -W -n com.androidsample.generalstore/.SplashActivity || echo "⚠️ Failed to start SplashActivity"
+            echo "🔍 Listing launcher activity..."
+            adb shell cmd package resolve-activity --brief com.androidsample.generalstore | tail -n 1 || true
+            echo "⚙️ If this returns 'No activity found', try using .debug or another variant"
 
             echo "🚀 Starting app and waiting for SplashActivity..."
             adb shell am start -W -n com.androidsample.generalstore/.SplashActivity
-            timeout=60; until adb shell dumpsys activity activities | grep -q "mResumedActivity.*com.androidsample.generalstore" || [ $timeout -le 0 ]; do echo "⏳ Waiting for app foreground..."; sleep 2; timeout=$((timeout-1)); done; [ $timeout -le 0 ] && echo "❌ App never resumed" && exit 1; echo "✅ App is in foreground"
-
-            # ⚠️ ЗМІНА: Об’єднаний однорядковий блок очікування foreground
-            echo "🚀 Starting app and waiting for foreground..."
-            adb shell am start -W -n com.androidsample.generalstore/.SplashActivity
-            timeout=60; until adb shell dumpsys activity activities | grep -q "mResumedActivity.*com.androidsample.generalstore" || [ $timeout -le 0 ]; do echo "⏳ Waiting for app foreground..."; sleep 2; timeout=$((timeout-1)); done; [ $timeout -le 0 ] && echo "❌ App never resumed" && exit 1; echo "✅ App is in foreground"
 
             echo "🧪 Running Maven tests..."
             adb shell dumpsys activity activities | grep "ResumedActivity"
