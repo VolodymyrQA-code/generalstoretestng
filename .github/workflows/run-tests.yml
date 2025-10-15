@@ -62,14 +62,17 @@ jobs:
           arch: x86
           profile: pixel_4
           disable-animations: false
-          ram-size: 2048M
-          heap-size: 512M
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
+          ram-size: 3072M
+          heap-size: 1024M
+          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
           script: |
             set -e
             export CI=true
             echo "🕓 Booting emulator..."; timeout=600; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done;
             echo "✅ Emulator boot completed"
+            adb wait-for-device
+            sleep 20
+            adb shell input keyevent 82
 
             echo "🔧 Disabling animations..."
             adb shell settings put global window_animation_scale 0
