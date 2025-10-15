@@ -61,7 +61,7 @@ jobs:
           target: google_apis
           arch: x86
           profile: pixel_4
-          disable-animations: true
+          disable-animations: false
           ram-size: 2048M
           heap-size: 512M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
@@ -110,26 +110,30 @@ jobs:
           name: screenshots
           path: target/screenshots/
 
-      - name: Generate Allure report
+      - name: 📊 Generate Allure report
         if: always()
         run: |
           if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then
-            echo "📊 Generating Allure report..."
-            rm -rf target/site/allure-maven-plugin || true
-            mvn -B allure:report
+            echo "📈 Generating Allure report with CLI..."
+            sudo apt-get update -y
+            wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.tgz
+            sudo tar -zxvf allure-2.30.0.tgz -C /opt/
+            sudo ln -s /opt/allure-2.30.0/bin/allure /usr/bin/allure
+            allure generate target/allure-results -o target/site/allure-report --clean
           else
-            echo "⚠️ No test results to generate report from"
-            mkdir -p target/site/allure-maven-plugin
-            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-maven-plugin/index.html
+            echo "⚠️ No test results found for Allure"
+            mkdir -p target/site/allure-report
+            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-report/index.html
           fi
 
-      - name: Upload Allure report
+      - name: 📦 Upload Allure report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
-          path: target/site/allure-maven-plugin/
+          path: target/site/allure-report/
           if-no-files-found: warn
+
 
       - name: Upload test logs
         if: failure()
