@@ -70,9 +70,6 @@ jobs:
             export CI=true
             echo "🕓 Booting emulator..."; timeout=600; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && exit 1; echo "Waiting for emulator to boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done;
             echo "✅ Emulator boot completed"
-            adb wait-for-device
-            sleep 20
-            adb shell input keyevent 82
 
             echo "🔧 Disabling animations..."
             adb shell settings put global window_animation_scale 0
@@ -92,10 +89,14 @@ jobs:
             appium --base-path /wd/hub --log-level info > appium.log 2>&1 &
             APPIUM_PID=$!
 
-            echo "🌐 Launching app..."
-            adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
-            adb shell am start -n com.android.generalstore/.SplashActivity
-            echo "✅ App launched"
+            adb wait-for-device
+            sleep 20
+            adb shell input keyevent 82
+
+            echo "Installing APK (safe mode)..."
+            adb push "$GITHUB_WORKSPACE/app/General-Store.apk" /data/local/tmp/General-Store.apk
+            adb shell pm install -r /data/local/tmp/General-Store.apk
+
 
             echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done;
 
