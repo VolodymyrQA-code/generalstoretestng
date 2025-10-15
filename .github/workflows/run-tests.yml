@@ -61,7 +61,7 @@ jobs:
           target: google_apis
           arch: x86
           profile: pixel_4
-          disable-animations: false
+          disable-animations: true
           ram-size: 3072M
           heap-size: 1024M
           emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
