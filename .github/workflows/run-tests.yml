@@ -64,7 +64,7 @@ jobs:
           disable-animations: true
           ram-size: 2048M
           heap-size: 512M
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
+          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -accel off -no-metrics
           script: |
             set -e
             export CI=true
