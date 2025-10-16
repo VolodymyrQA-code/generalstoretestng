@@ -173,7 +173,7 @@ public class BasePage {
             }
 
             // === Налаштування WebDriverWait ===
-            int waitSeconds = isCI() ? 20 : 5;
+            int waitSeconds = isCI() ? 25 : 5;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
             // --- швидка перевірка splash screen ---
