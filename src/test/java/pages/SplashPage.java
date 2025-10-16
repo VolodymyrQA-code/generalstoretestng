@@ -32,36 +32,32 @@ public class SplashPage {
      */
     @Step("Перевірка відображення Splash Screen")
     public boolean isSplashDisplayed() {
-        boolean isCI = System.getenv("CI") != null && System.getenv("CI").equalsIgnoreCase("true");
-        long timeout = isCI ? 90 : 15; // seconds
+    long startTime = System.currentTimeMillis();
 
-        long startTime = System.currentTimeMillis();
+    By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
+    boolean splashPresent = !driver.findElements(splashLocator).isEmpty();
 
-        try {
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeout));
-            WebElement splash = wait.until(ExpectedConditions.visibilityOfElementLocated(splashId));
+    if (splashPresent) {
+        long elapsed = System.currentTimeMillis() - startTime;
+        System.out.println("✅ Splash screen visible immediately! Час перевірки: " + elapsed / 1000.0 + "s");
+        return true;
+    } else {
+        // Якщо splash не знайдено, перевіряємо одразу головний екран
+        By homeToolbarId = By.id("com.androidsample.generalstore:id/toolbar_title");
+        boolean homeVisible = !driver.findElements(homeToolbarId).isEmpty();
 
+        if (homeVisible) {
             long elapsed = System.currentTimeMillis() - startTime;
-            System.out.println("✅ Splash screen detected! Час очікування: " + elapsed / 1000.0 + "s");
-            return splash.isDisplayed();
-
-        } catch (TimeoutException e) {
-            long elapsed = System.currentTimeMillis() - startTime;
-            System.out.println("⚠️ Splash screen not found after " + timeout + "s. Час очікування: " + elapsed / 1000.0 + "s");
-
-            // Перевірка, чи вже відкрився головний екран
-            try {
-                WebDriverWait waitHome = new WebDriverWait(driver, Duration.ofSeconds(5));
-                WebElement homeToolbar = waitHome.until(ExpectedConditions.visibilityOfElementLocated(homeToolbarId));
-                System.out.println("ℹ️ Splash skipped, але головний екран видимий. Час очікування: " + elapsed / 1000.0 + "s");
-                return true;
-            } catch (TimeoutException ex) {
-                System.out.println("❌ Neither splash nor home screen found. Saving debug info...");
-                saveDebugInfo();
-                return false;
-            }
+            System.out.println("ℹ️ Splash skipped, але головний екран видимий. Час перевірки: " + elapsed / 1000.0 + "s");
+            return true;
+        } else {
+            System.out.println("❌ Neither splash nor home screen found. Saving debug info...");
+            saveDebugInfo();
+            return false;
         }
     }
+}
+
 
     
 
