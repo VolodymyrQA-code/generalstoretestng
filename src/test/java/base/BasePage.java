@@ -100,20 +100,12 @@ public class BasePage {
     }
 
     private static void waitForResumedActivity() throws IOException, InterruptedException {
-        int retries = 0;
-        while (retries < 2) {
-            Process p = Runtime.getRuntime().exec("adb shell dumpsys activity activities | grep 'ResumedActivity'");
-            p.waitFor();
-            String output = new String(p.getInputStream().readAllBytes()).trim();
-            if (!output.isEmpty() && !output.contains("Not found")) {
-                System.out.println("🎯 Current resumed activity: " + output);
-                return;
-            }
-            System.out.println("⌛ Waiting for resumed activity...");
-            retries++;
-        }
-        System.out.println("⚠️ No resumed activity detected after timeout.");
+        Process p = Runtime.getRuntime().exec("adb shell dumpsys activity activities | grep 'ResumedActivity'");
+        p.waitFor();
+        String output = new String(p.getInputStream().readAllBytes()).trim();
+        System.out.println("🎯 Current resumed activity: " + output);
     }
+
 
     @BeforeAll
     static void setup() {
@@ -143,7 +135,6 @@ public class BasePage {
                     .setDeviceName(deviceName)
                     .setAutomationName(AutomationName.ANDROID_UIAUTOMATOR2)
                     .setAppPackage("com.androidsample.generalstore")
-                    .setAppActivity("com.androidsample.generalstore.SplashActivity")
                     .setAppWaitActivity("com.androidsample.generalstore.*")
                     .autoGrantPermissions();
 
@@ -152,6 +143,7 @@ public class BasePage {
                 options.setUiautomator2ServerLaunchTimeout(Duration.ofSeconds(180));
                 options.setAdbExecTimeout(Duration.ofSeconds(600));
                 options.setNewCommandTimeout(Duration.ofSeconds(600));
+                options.setAppWaitDuration(Duration.ofSeconds(1));
             }
 
             // === Підключення до Appium ===
@@ -181,7 +173,7 @@ public class BasePage {
             }
 
             // === Налаштування WebDriverWait ===
-            int waitSeconds = isCI() ? 25 : 5;
+            int waitSeconds = isCI() ? 20 : 5;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
             // --- швидка перевірка splash screen ---

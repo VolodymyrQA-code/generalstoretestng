@@ -34,8 +34,7 @@ public class SplashPage {
     public boolean isSplashDisplayed() {
     long startTime = System.currentTimeMillis();
 
-    By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
-    boolean splashPresent = !driver.findElements(splashLocator).isEmpty();
+    boolean splashPresent = !driver.findElements(splashId).isEmpty();
 
     if (splashPresent) {
         long elapsed = System.currentTimeMillis() - startTime;
@@ -43,7 +42,6 @@ public class SplashPage {
         return true;
     } else {
         // Якщо splash не знайдено, перевіряємо одразу головний екран
-        By homeToolbarId = By.id("com.androidsample.generalstore:id/toolbar_title");
         boolean homeVisible = !driver.findElements(homeToolbarId).isEmpty();
 
         if (homeVisible) {
