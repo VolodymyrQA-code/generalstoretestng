@@ -57,9 +57,7 @@ public class HomeTest extends BasePage {
     @Order(4) 
     @Description("Перевіряємо, що заголовок для вибору статі відображається")
     public void testGenderTitle() {
-        home.checkEmptyName("");
-    boolean isErrorVisible = utils.isTextVisibleNow("Please enter your name");
-    assertTrue(isErrorVisible, "Повідомлення про помилку 'Please enter your name' не з'явилось");
+        home.verifyGenderTitle();
 }
 
     @Test 
@@ -101,8 +99,7 @@ public class HomeTest extends BasePage {
     @Order(10) 
     @Description("Перевіряємо ерор при порожньому імені")
     public void testVerifyErrorOnEmptyName() {
-        String userName = ConfigReader.getProperty("userName"); // читаємо з config.properties
-        home.enterAndVerifyValidName(userName);
+        home.checkEmptyName();
     }
 
     @Test 

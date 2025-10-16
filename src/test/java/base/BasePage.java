@@ -101,7 +101,7 @@ public class BasePage {
 
     private static void waitForResumedActivity() throws IOException, InterruptedException {
         int retries = 0;
-        while (retries < 10) {
+        while (retries < 2) {
             Process p = Runtime.getRuntime().exec("adb shell dumpsys activity activities | grep 'ResumedActivity'");
             p.waitFor();
             String output = new String(p.getInputStream().readAllBytes()).trim();
@@ -110,7 +110,6 @@ public class BasePage {
                 return;
             }
             System.out.println("⌛ Waiting for resumed activity...");
-            Thread.sleep(3000);
             retries++;
         }
         System.out.println("⚠️ No resumed activity detected after timeout.");
@@ -182,18 +181,24 @@ public class BasePage {
             }
 
             // === Налаштування WebDriverWait ===
-            int waitSeconds = isCI() ? 60 : 20;
+            int waitSeconds = isCI() ? 25 : 5;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
-            // === Очікування splash screen ===
-            try {
-                System.out.println("👀 Waiting for splash screen element...");
-                By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
-                wait.until(ExpectedConditions.visibilityOfElementLocated(splashLocator));
-                System.out.println("✅ Splash screen is visible.");
-            } catch (TimeoutException e) {
-                System.out.println("⚠️ Splash screen not found after timeout, continuing anyway.");
-                takeScreenshot("splash_timeout");
+            // --- швидка перевірка splash screen ---
+            By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
+            boolean splashPresent = !driver.findElements(splashLocator).isEmpty();
+
+            if (splashPresent) {
+                System.out.println("✅ Splash screen is visible immediately");
+            } else {
+                try {
+                    WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(2));
+                    shortWait.until(ExpectedConditions.visibilityOfElementLocated(splashLocator));
+                    System.out.println("✅ Splash screen appeared after short wait");
+                } catch (TimeoutException e) {
+                    System.out.println("⚠️ Splash screen not found after short wait");
+                    takeScreenshot("splash_timeout");
+                }
             }
 
         } catch (Exception e) {

@@ -109,7 +109,7 @@ public class HomePage {
     utils.closeKeyboard();
     }
 
-    public void checkEmptyName(String name) {
+    public void checkEmptyName() {
     utils.click(letsShopBtn);
     boolean isErrorVisible = utils.isTextVisibleNow("Please enter your name");
     if (isErrorVisible) {
