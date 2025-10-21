@@ -1,14 +1,13 @@
-name: Android UI Tests with Allure
+name: Mobile UI Tests with Allure
 
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  android-test:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,18 +26,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      - name: Cache npm packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.19.0
+          node-version: 22
 
       - name: Install Appium
         run: |
@@ -50,17 +41,11 @@ jobs:
           APK_PATH="$GITHUB_WORKSPACE/app/General-Store.apk"
           if [ ! -f "$APK_PATH" ]; then echo "❌ APK not found at $APK_PATH"; exit 1; fi
           echo "✅ APK found at $APK_PATH"
-          echo "Verifying APK format..."
-          file "$APK_PATH"
-          unzip -t "$APK_PATH" || (echo "❌ APK is corrupted"; exit 1)
 
       - name: Start Appium server
         run: |
-          echo "🚀 Starting Appium server..."
           nohup appium --log appium.log --base-path /wd/hub > /dev/null 2>&1 &
           sleep 10
-          curl -s http://127.0.0.1:4723/wd/hub/status || echo "⚠️ Appium may not be fully up yet"
-
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -75,57 +60,87 @@ jobs:
           script: |
             set -e
             export CI=true
-            echo "🕓 Waiting for emulator device to appear..."
-            adb start-server && for i in $(seq 1 60); do adb devices | grep "emulator-" && echo "✅ Emulator device detected" && break || echo "⏳ Emulator not visible yet... ($i/60)"; sleep 5; done
-
-            echo "🕓 Booting emulator and waiting for Android OS..."
-            timeout=600; counter=0; while [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; do [ $counter -ge $timeout ] && echo "❌ Timeout waiting for emulator to boot" && adb devices && exit 1; echo "Waiting for boot... ($counter/$timeout)"; sleep 5; counter=$((counter + 5)); done; sleep 20
-
-            echo "🔧 Disabling animations..."
-            adb shell settings put global window_animation_scale 0 || true
-            adb shell settings put global transition_animation_scale 0 || true
-            adb shell settings put global animator_duration_scale 0 || true
-
-
-            echo "Cleaning Appium cache and temp folders..."
-            rm -rf /tmp/appium* || true
-            rm -rf ~/.cache/appium || true
-            rm -rf $GITHUB_WORKSPACE/appium_logs || true
-
-            echo "Waiting for Appium to start..."; for i in $(seq 1 30); do curl -s http://localhost:4723/wd/hub/status > /dev/null && echo "✅ Appium server is ready!" && break; echo "Waiting for Appium... attempt $i/30"; sleep 2; done; echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done
-
-            echo "🔎 Checking current resumed activity..."; i=1; while [ $i -le 15 ]; do activity=$(adb shell dumpsys activity activities | grep "ResumedActivity" || true); [ -n "$activity" ] && echo "🎯 Active: $activity" && break; echo "⏳ Waiting for resumed activity... attempt $i/15"; sleep 4; i=$((i + 1)); done
 
             echo "🌐 Installing APK..."
             adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
 
-            echo "🔍 Checking installed package name..."
-            adb shell pm list packages | grep generalstore || echo "⚠️ Package not found!"
-
-            echo "🔍 Listing launcher activity..."
-            adb shell cmd package resolve-activity --brief com.androidsample.generalstore | tail -n 1 || true
-            echo "⚙️ If this returns 'No activity found', try using .debug or another variant"
-
-            echo "🚀 Starting app and waiting for SplashActivity..."
+            echo "🚀 Starting app..."
             adb shell am start -W -n com.androidsample.generalstore/.SplashActivity
 
             echo "🧪 Running Maven tests..."
-            adb shell dumpsys activity activities | grep "ResumedActivity"
-            mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
+            mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results/android || TEST_EXIT_CODE=$?
 
-            echo "🧹 Stopping Appium..."; [ -n "$APPIUM_PID" ] && kill $APPIUM_PID 2>/dev/null || true; [ -f appium.log ] && echo "📋 Appium logs (last 50 lines):" && tail -50 appium.log; if [ -d "target/allure-results" ]; then echo "✅ Test results found in target/allure-results"; ls -la target/allure-results/; else echo "⚠️ No test results found in target/allure-results"; mkdir -p target/allure-results; echo '{}' > target/allure-results/dummy.json; fi; exit ${TEST_EXIT_CODE:-0};
+            exit ${TEST_EXIT_CODE:-0}
 
-      - name: Upload screenshots
-        uses: actions/upload-artifact@v4
+  ios-test:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          name: screenshots
-          path: target/screenshots/
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: 📊 Generate Allure report
-        if: always()
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Appium
         run: |
-          if [ -d "target/allure-results" ] && [ "$(ls -A target/allure-results)" ]; then
-            echo "📈 Generating Allure report with CLI..."
+          npm install -g appium@3.0.2
+          appium driver install xcuitest
+
+      - name: Start iOS Simulator
+        run: |
+          xcrun simctl boot "iPhone 14" || true
+          echo "🕓 Waiting for simulator boot..."
+          timeout=300
+          counter=0
+          while [ "$(xcrun simctl list devices | grep Booted | grep 'iPhone 14')" = "" ]; do
+            [ $counter -ge $timeout ] && echo "❌ Timeout waiting for simulator" && exit 1
+            echo "⏳ Waiting for simulator boot... ($counter/$timeout)"
+            sleep 5
+            counter=$((counter + 5))
+          done
+          xcrun simctl list devices
+
+      - name: Start Appium server
+        run: |
+          nohup appium --log appium.log --base-path /wd/hub > /dev/null 2>&1 &
+          sleep 10
+
+      - name: Install iOS app and run tests
+        run: |
+          APP_PATH="$GITHUB_WORKSPACE/app/General-Store.app"
+          xcrun simctl install booted "$APP_PATH"
+          xcrun simctl launch booted com.yourcompany.GeneralStore
+          mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results/ios || TEST_EXIT_CODE=$?
+          exit ${TEST_EXIT_CODE:-0}
+
+  allure-report:
+    runs-on: ubuntu-latest
+    needs: [android-test, ios-test]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate Allure report
+        run: |
+          if [ -d "target/allure-results" ]; then
+            echo "📈 Generating Allure report..."
             sudo apt-get update -y
             wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.tgz
             sudo tar -zxvf allure-2.30.0.tgz -C /opt/
@@ -137,22 +152,8 @@ jobs:
             echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-report/index.html
           fi
 
-
-      - name: 📦 Upload Allure report
-        if: always()
+      - name: Upload Allure report
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
           path: target/site/allure-report/
-          if-no-files-found: warn
-
-
-      - name: Upload test logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-logs
-          path: |
-            appium.log
-            target/surefire-reports/
-          if-no-files-found: ignore

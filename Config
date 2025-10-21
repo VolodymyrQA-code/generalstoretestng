@@ -1,0 +1,9 @@
+For start Appium
+
+appium --base-path /wd/hub
+
+For Android Test start Android studio -> Emulator
+Then mvn test -Dtest=AllTestsSuite
+
+For iOs Test start Xcode -> Emulator
+mvn test -Dtest=IOSSuite

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.generalstore</groupId>
@@ -8,14 +10,11 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <!-- Версія Java -->
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-         <!-- Кодування проекту -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
-
 
     <dependencies>
         <!-- Selenium -->
@@ -25,6 +24,7 @@
             <version>4.35.0</version>
         </dependency>
 
+        <!-- Appium Java Client -->
         <dependency>
             <groupId>io.appium</groupId>
             <artifactId>java-client</artifactId>
@@ -36,35 +36,6 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.10.0</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!--
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.10.0</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>5.10.0</version>
-            <scope>test</scope>
-        </dependency>
-        -->
-
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.12.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.qameta.allure</groupId>
-            <artifactId>allure-junit5</artifactId>
-            <version>2.30.0</version>
             <scope>test</scope>
         </dependency>
 
@@ -82,30 +53,36 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Allure -->
         <dependency>
-            <groupId>com.epam.reportportal</groupId>
-            <artifactId>allure-common</artifactId>
-            <version>5.4.0</version>
-            <scope>runtime</scope>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-junit5</artifactId>
+            <version>2.30.0</version>
+            <scope>test</scope>
         </dependency>
 
+        <!-- Commons IO для збереження скриншотів -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.12.0</version>
+        </dependency>
     </dependencies>
+
     <build>
         <plugins>
-            <!-- Maven Surefire Plugin для тестів -->
+            <!-- Maven Surefire для тестів -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.4</version>
-             <configuration>
-                <includes>
-                    <include>**/*Suite.java</include>
-                </includes>
-                <systemPropertyVariables>
-                    <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
-            </systemPropertyVariables>
-            </configuration>
+                <configuration>
+                    <systemPropertyVariables>
+                        <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
+
             <!-- Allure Maven Plugin для генерації звітів -->
             <plugin>
                 <groupId>io.qameta.allure</groupId>
@@ -123,4 +100,43 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Профіль для Android тестів -->
+        <profile>
+            <id>android</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/AllTestsSuite.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Профіль для iOS тестів -->
+        <profile>
+            <id>ios</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/IOSSuite.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 </project>
