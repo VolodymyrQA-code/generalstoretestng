@@ -81,9 +81,9 @@ jobs:
           path: target/site/allure-report/
 
   ios-test:
-      runs-on: macos-latest
-      timeout-minutes: 30
-      steps:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -113,37 +113,33 @@ jobs:
           echo "✅ Appium installed"
           appium -v
 
-      - name: List available simulators
-        run: xcrun simctl list devices available
-
-      - name: Select iPhone simulator UDID
-        id: sim
+      - name: Select available iPhone simulator
+        id: select-sim
         run: |
-          SIM_UDID=$(xcrun simctl list devices available | grep -E "iPhone 14|iPhone 16|iPhone 17" | grep -E "18.6|26.0|18.[0-9]" | head -1 | awk -F '[()]' '{print $2}')
+          SIM_UDID=$(xcrun simctl list devices available | grep -E "iPhone" | grep -v "iPad" | head -1 | awk -F '[()]' '{print $2}')
           if [ -z "$SIM_UDID" ]; then
-            echo "❌ Не знайдено підходящий iPhone симулятор"
+            echo "❌ Не знайдено доступний iPhone симулятор"
             exit 1
           fi
+          echo "✅ Вибрано симулятор UDID: $SIM_UDID"
           echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
-          echo "✅ Selected simulator UDID: $SIM_UDID"
 
-      - name: Boot iOS Simulator
+      - name: Boot iPhone simulator
         run: |
           xcrun simctl boot "$SIM_UDID" || echo "Simulator already booted"
-          xcrun simctl list devices
+          xcrun simctl list devices | grep "$SIM_UDID"
 
       - name: Set APPIUM_JS_PATH
         run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
 
       - name: Start Appium server (iOS)
         run: |
-          lsof -i :4725 && echo "Port 4725 in use, killing existing Appium..." && lsof -ti :4725 | xargs kill -9
+          if lsof -i :4725; then
+            echo "Port 4725 in use, killing existing Appium..."
+            lsof -ti :4725 | xargs kill -9
+          fi
           nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > appium-ios.log 2>&1 &
-          until curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; do
-            echo "Waiting for Appium..."
-            sleep 2
-          done
-          echo "✅ Appium is ready"
+          echo "✅ Appium server started"
 
       - name: Run Maven iOS tests
         run: |
