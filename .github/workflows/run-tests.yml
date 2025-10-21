@@ -115,8 +115,13 @@ jobs:
 
       - name: Start iOS Simulator
         run: |
-          SIM_DEVICE="iPhone 14"; UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}'); [ -n "$UDID" ] && (echo "Booting $SIM_DEVICE with UDID $UDID"; xcrun simctl boot "$UDID") || echo "$SIM_DEVICE already booted or not found"; xcrun simctl list devices
-
+          SIM_DEVICE="iPhone 14"
+          UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (" | grep -oE "[A-F0-9-]{36}" | head -1)
+          echo "Booting $SIM_DEVICE with UDID $UDID"
+          xcrun simctl boot "$UDID" || true
+          echo "Waiting for simulator to finish booting..."
+          xcrun simctl bootstatus "$UDID" -b
+          sleep 15  # 🕒 невелика пауза перед запуском Appium
       - name: Set APPIUM_JS_PATH
         run: echo "APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
 

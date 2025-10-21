@@ -18,17 +18,21 @@ public class IOSBasePage {
     public static void setup() throws Exception {
         XCUITestOptions options = new XCUITestOptions()
                 .setPlatformName("iOS")
-                .setDeviceName("iPhone 14")    // або 17, як тобі треба
-                .setPlatformVersion("18.6")    // версія симулятора
+                .setDeviceName("iPhone 14")
+                .setPlatformVersion("18.6")
                 .setApp(System.getProperty("user.dir") + "/AppIos/TheApp.app")
                 .setNoReset(true)
                 .setNewCommandTimeout(Duration.ofSeconds(60))
-                .setAutomationName("XCUITest");
+                .setAutomationName("XCUITest")
+                // 🟢 додаємо додаткові таймаути для стабільності на GitHub Actions
+                .setWdaLaunchTimeout(Duration.ofSeconds(120))
+                .setWdaConnectionTimeout(Duration.ofSeconds(120))
+                .setCommandTimeouts(Duration.ofMinutes(3));
 
-        // Підключаємося до вже запущеного Appium сервера на GitHub Actions
+        System.out.println("🚀 Створюємо iOS Driver...");
         driver = new IOSDriver(new URL("http://127.0.0.1:4725/wd/hub"), options);
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
-        System.out.println("✅ iOS Driver запущено");
+        System.out.println("✅ iOS Driver запущено успішно!");
     }
 
     @AfterAll
