@@ -2,13 +2,10 @@ package base;
 
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.options.XCUITestOptions;
-import io.appium.java_client.service.local.AppiumDriverLocalService;
-import io.appium.java_client.service.local.AppiumServiceBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.openqa.selenium.OutputType;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -16,31 +13,20 @@ import java.net.URL;
 
 public class IOSBasePage {
     protected static IOSDriver driver;
-    protected static AppiumDriverLocalService service;
 
     @BeforeAll
     public static void setup() throws Exception {
-        String appiumPath = System.getenv("APPIUM_JS_PATH");
-        if (appiumPath == null || appiumPath.isEmpty()) {
-            throw new RuntimeException("❌ Environment variable APPIUM_JS_PATH is not set");
-        }
-            service = new AppiumServiceBuilder()
-            .withAppiumJS(new File(appiumPath))
-            .withIPAddress("127.0.0.1")
-            .usingPort(4723)
-            .withArgument(() -> "--base-path", "/wd/hub")
-            .build();
-
         XCUITestOptions options = new XCUITestOptions()
                 .setPlatformName("iOS")
-                .setDeviceName("iPhone 17")
-                .setPlatformVersion("26.0")
+                .setDeviceName("iPhone 14")    // або 17, як тобі треба
+                .setPlatformVersion("16.0")    // версія симулятора
                 .setApp("/Users/IUAR0044/generalstore/AppIos/TheApp.app")
                 .setNoReset(true)
                 .setNewCommandTimeout(Duration.ofSeconds(60))
                 .setAutomationName("XCUITest");
 
-        driver = new IOSDriver(new URL("http://127.0.0.1:4723/wd/hub"), options);
+        // Підключаємося до вже запущеного Appium сервера на GitHub Actions
+        driver = new IOSDriver(new URL("http://127.0.0.1:4725/wd/hub"), options);
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
         System.out.println("✅ iOS Driver запущено");
     }
@@ -50,10 +36,6 @@ public class IOSBasePage {
         if (driver != null) {
             driver.quit();
             System.out.println("🧹 Драйвер закрито");
-        }
-        if (service != null) {
-            service.stop();
-            System.out.println("🧩 Appium сервер зупинено");
         }
     }
 
