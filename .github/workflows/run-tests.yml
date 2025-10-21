@@ -113,39 +113,15 @@ jobs:
           echo "✅ Appium installed"
           appium -v
 
-      - name: Start Appium server (iOS)
-        run: |
-          # Якщо порт зайнятий — вбиваємо процес
-          lsof -i :4725 && echo "Port 4725 in use, killing..." && lsof -ti :4725 | xargs kill -9
-
-
-          # Запускаємо Appium лише один раз
-          nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > appium-ios.log 2>&1 &
-    
-          # Чекаємо 10 секунд, щоб сервер піднявся
-          sleep 10
-
-          # Чекаємо готовності Appium
-          until curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; do echo "Waiting for Appium..."; sleep 2; done
-
-
       - name: Start iOS Simulator
         run: |
-          SIM_DEVICE="iPhone 14"
-          UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}')
-          if [ -n "$UDID" ]; then
-            echo "Booting simulator $SIM_DEVICE with UDID $UDID"
-            xcrun simctl boot "$UDID"
-          else
-            echo "$SIM_DEVICE already booted or not found"
-          fi
-          xcrun simctl list devices
+          SIM_DEVICE="iPhone 14"; UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}'); [ -n "$UDID" ] && (echo "Booting $SIM_DEVICE with UDID $UDID"; xcrun simctl boot "$UDID") || echo "$SIM_DEVICE already booted or not found"; xcrun simctl list devices
 
       - name: Start Appium server (iOS)
         run: |
+          lsof -i :4725 && echo "Port 4725 in use, killing existing Appium..." && lsof -ti :4725 | xargs kill -9
           nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > appium-ios.log 2>&1 &
-          sleep 10
-          curl -s http://127.0.0.1:4725/wd/hub/status
+          until curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; do echo "Waiting for Appium..."; sleep 2; done
 
       - name: Run Maven iOS tests
         run: |
