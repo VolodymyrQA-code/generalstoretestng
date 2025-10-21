@@ -1,4 +1,4 @@
-name: Mobile UI Tests with Allure
+name: UI Tests with Allure
 
 on:
   push:
@@ -8,6 +8,7 @@ jobs:
   android-test:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,26 +27,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
+      - name: Cache npm packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.19.0
 
-      - name: Install Appium
+      - name: Install Appium (Android)
         run: |
           npm install -g appium@3.0.2
           appium driver install uiautomator2
 
-      - name: Check APK
+      - name: Start Appium server (Android)
         run: |
-          APK_PATH="$GITHUB_WORKSPACE/app/General-Store.apk"
-          if [ ! -f "$APK_PATH" ]; then echo "❌ APK not found at $APK_PATH"; exit 1; fi
-          echo "✅ APK found at $APK_PATH"
-
-      - name: Start Appium server
-        run: |
-          nohup appium --log appium.log --base-path /wd/hub > /dev/null 2>&1 &
+          nohup appium -p 4723 --log appium-android.log --base-path /wd/hub > /dev/null 2>&1 &
           sleep 10
+          curl -s http://127.0.0.1:4723/wd/hub/status
 
       - name: Start Android emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -58,23 +62,28 @@ jobs:
           ram-size: 2048M
           heap-size: 512M
           script: |
-            set -e
             export CI=true
-
-            echo "🌐 Installing APK..."
-            adb install -r "$GITHUB_WORKSPACE/app/General-Store.apk"
-
-            echo "🚀 Starting app..."
-            adb shell am start -W -n com.androidsample.generalstore/.SplashActivity
-
-            echo "🧪 Running Maven tests..."
-            mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results/android || TEST_EXIT_CODE=$?
-
+            adb install -r $GITHUB_WORKSPACE/app/General-Store.apk
+            mvn -B clean test -Pandroid -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
             exit ${TEST_EXIT_CODE:-0}
+
+      - name: Upload Android screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-screenshots
+          path: target/screenshots/
+
+      - name: Upload Android Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-allure-report
+          path: target/site/allure-report/
 
   ios-test:
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -93,67 +102,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      - name: Set up Node.js
+      - name: Set up Node.js and Appium (iOS)
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Install Appium
-        run: |
+      - run: |
           npm install -g appium@3.0.2
           appium driver install xcuitest
+          export PATH=$PATH:$(npm root -g)/.bin
 
       - name: Start iOS Simulator
         run: |
-          xcrun simctl boot "iPhone 14" || true
-          echo "🕓 Waiting for simulator boot..."
-          timeout=300
-          counter=0
-          while [ "$(xcrun simctl list devices | grep Booted | grep 'iPhone 14')" = "" ]; do
-            [ $counter -ge $timeout ] && echo "❌ Timeout waiting for simulator" && exit 1
-            echo "⏳ Waiting for simulator boot... ($counter/$timeout)"
-            sleep 5
-            counter=$((counter + 5))
-          done
+          SIM_DEVICE="iPhone 14"; UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}'); [ -n "$UDID" ] && (echo "Booting simulator $SIM_DEVICE with UDID $UDID"; xcrun simctl boot "$UDID") || echo "$SIM_DEVICE already booted or not found"
           xcrun simctl list devices
 
-      - name: Start Appium server
+      - name: Start Appium server (iOS)
         run: |
-          nohup appium --log appium.log --base-path /wd/hub > /dev/null 2>&1 &
+          nohup appium -p 4725 --log appium-ios.log --base-path /wd/hub > /dev/null 2>&1 &
           sleep 10
+          curl -s http://127.0.0.1:4725/wd/hub/status
 
-      - name: Install iOS app and run tests
-        run: |
-          APP_PATH="$GITHUB_WORKSPACE/app/General-Store.app"
-          xcrun simctl install booted "$APP_PATH"
-          xcrun simctl launch booted com.yourcompany.GeneralStore
-          mvn -B clean test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results/ios || TEST_EXIT_CODE=$?
-          exit ${TEST_EXIT_CODE:-0}
-
-  allure-report:
-    runs-on: ubuntu-latest
-    needs: [android-test, ios-test]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Generate Allure report
-        run: |
-          if [ -d "target/allure-results" ]; then
-            echo "📈 Generating Allure report..."
-            sudo apt-get update -y
-            wget https://github.com/allure-framework/allure2/releases/download/2.30.0/allure-2.30.0.tgz
-            sudo tar -zxvf allure-2.30.0.tgz -C /opt/
-            sudo ln -s /opt/allure-2.30.0/bin/allure /usr/bin/allure
-            allure generate target/allure-results -o target/site/allure-report --clean
-          else
-            echo "⚠️ No test results found for Allure"
-            mkdir -p target/site/allure-report
-            echo "<html><body><h1>No test results available</h1></body></html>" > target/site/allure-report/index.html
-          fi
-
-      - name: Upload Allure report
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-report
-          path: target/site/allure-report/
+      - name: Run Maven iOS tests
+        run: mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
