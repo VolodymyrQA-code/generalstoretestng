@@ -18,7 +18,7 @@ public class IOSBasePage {
     public static void setup() throws Exception {
         XCUITestOptions options = new XCUITestOptions()
                 .setPlatformName("iOS")
-                .setDeviceName("iPhone 14")
+                .setDeviceName(System.getenv().getOrDefault("IOS_DEVICE", "iPhone 14"))
                 .setPlatformVersion("18.6")
                 .setApp(System.getProperty("user.dir") + "/AppIos/TheApp.app")
                 .setNoReset(true)
