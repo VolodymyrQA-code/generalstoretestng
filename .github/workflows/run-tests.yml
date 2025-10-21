@@ -117,6 +117,10 @@ jobs:
         run: |
           SIM_DEVICE="iPhone 14"; UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}'); [ -n "$UDID" ] && (echo "Booting $SIM_DEVICE with UDID $UDID"; xcrun simctl boot "$UDID") || echo "$SIM_DEVICE already booted or not found"; xcrun simctl list devices
 
+      - name: Set APPIUM_JS_PATH
+        run: echo "APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
+
+      
       - name: Start Appium server (iOS)
         run: |
           lsof -i :4725 && echo "Port 4725 in use, killing existing Appium..." && lsof -ti :4725 | xargs kill -9
