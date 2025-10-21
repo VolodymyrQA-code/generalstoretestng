@@ -118,10 +118,20 @@ jobs:
         run: xcrun simctl list devices available
 
       - name: Start iOS Simulator
+        shell: bash
         run: |
-          SIM_DEVICE=$(xcrun simctl list devices available | grep "iPhone 14" | head -1 | awk -F '[()]' '{print $2}')
+          SIM_DEVICE=$(xcrun simctl list devices available | grep 'iPhone 14' | head -1 | awk -F '[()]' '{print $2}')
           if [ -z "$SIM_DEVICE" ]; then
             echo "❌ iPhone 14 не знайдено, шукаємо будь-який доступний iPhone..."
-            SIM_DEVICE=$(xcrun simctl list devices available | grep "iPhone" | head -1 | awk -F '[()]' '{print $2}')
+            SIM_DEVICE=$(xcrun simctl list devices available | grep 'iPhone' | head -1 | awk -F '[()]' '{print $2}')
           fi
-          echo "�
+
+          if [ -z "$SIM_DEVICE" ]; then
+            echo "❌ Не вдалося знайти жоден симулятор iPhone. Перериваю роботу."
+            exit 1
+          fi
+
+          echo "📱 Booting simulator with UDID: $SIM_DEVICE"
+          xcrun simctl boot "$SIM_DEVICE" || echo "⚠️ Simulator already booted"
+          xcrun simctl list devices
+          sleep 20
