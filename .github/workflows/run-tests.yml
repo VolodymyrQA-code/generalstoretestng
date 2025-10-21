@@ -83,51 +83,49 @@ jobs:
   ios-test:
     runs-on: macos-latest
     timeout-minutes: 20
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2
+    - name: Cache Maven packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2
 
-      - name: Set up Node.js and Appium (iOS)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: |
-          npm install -g appium@3.0.2
-          appium driver install xcuitest
-          export PATH=$PATH:$(npm root -g)/.bin
-          echo "Appium path: $(npm root -g)/appium/build/lib/main.js"
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
 
-      - name: Start iOS Simulator
-        run: |
-          SIM_DEVICE="iPhone 14"
-          UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}')
-          [ -n "$UDID" ] && (echo "Booting simulator $SIM_DEVICE with UDID $UDID"; xcrun simctl boot "$UDID") || echo "$SIM_DEVICE already booted or not found"
-          xcrun simctl list devices
+    - name: Install Appium and XCUITest driver
+      run: |
+        npm install -g appium@3.0.2
+        appium driver install xcuitest
+        export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js
+        echo "APPIUM_JS_PATH=$APPIUM_JS_PATH"
 
-      - name: Start Appium server (iOS)
-        run: |
-          APPIUM_PATH=$(npm root -g)/appium/build/lib/main.js
-          nohup node "$APPIUM_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > /dev/null 2>&1 &
-          sleep 10
-          curl -s http://127.0.0.1:4725/wd/hub/status
+    - name: Start iOS Simulator
+      run: |
+        SIM_DEVICE="iPhone 14"
+        UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}')
+        [ -n "$UDID" ] && (echo "Booting simulator $SIM_DEVICE with UDID $UDID"; xcrun simctl boot "$UDID") || echo "$SIM_DEVICE already booted or not found"
 
-      - name: Run Maven iOS tests
-        run: |
-          # Передаємо java-client фактичний шлях до main.js через змінну середовища
-          export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js
-          mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+    - name: Start Appium server (iOS)
+      run: |
+        nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > /dev/null 2>&1 &
+        sleep 10
+        curl -s http://127.0.0.1:4725/wd/hub/status
+
+    - name: Run Maven iOS tests
+      run: |
+        export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js
+        mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results

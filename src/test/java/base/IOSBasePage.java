@@ -20,13 +20,16 @@ public class IOSBasePage {
 
     @BeforeAll
     public static void setup() throws Exception {
-        service = new AppiumServiceBuilder()
-                .withAppiumJS(new File("/usr/local/lib/node_modules/appium/build/lib/main.js"))
-                .withIPAddress("127.0.0.1")
-                .usingPort(4723)
-                .withArgument(() -> "--base-path", "/wd/hub")
-                .build();
-        service.start();
+        String appiumPath = System.getenv("APPIUM_JS_PATH");
+        if (appiumPath == null || appiumPath.isEmpty()) {
+            throw new RuntimeException("❌ Environment variable APPIUM_JS_PATH is not set");
+        }
+            service = new AppiumServiceBuilder()
+            .withAppiumJS(new File(appiumPath))
+            .withIPAddress("127.0.0.1")
+            .usingPort(4723)
+            .withArgument(() -> "--base-path", "/wd/hub")
+            .build();
 
         XCUITestOptions options = new XCUITestOptions()
                 .setPlatformName("iOS")
