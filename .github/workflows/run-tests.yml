@@ -106,13 +106,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install Appium + XCUITest driver
-        run: |
-          npm install -g appium@3.0.2
-          appium driver install xcuitest
-          echo "✅ Appium installed"
-          appium -v
-
       - name: Select available iPhone simulator
         id: select-sim
         run: |
@@ -127,7 +120,18 @@ jobs:
       - name: Boot iPhone simulator
         run: |
           xcrun simctl boot "$SIM_UDID" || echo "Simulator already booted"
+          until xcrun simctl bootstatus "$SIM_UDID" -b; do sleep 2; done
           xcrun simctl list devices | grep "$SIM_UDID"
+
+      - name: Install Appium + XCUITest driver
+        run: |
+          npm config set fetch-retries 5
+          npm config set fetch-retry-factor 2
+          npm config set fetch-timeout 600000
+          npm install -g appium@3.0.2
+          appium driver install xcuitest
+          echo "✅ Appium та XCUITest готові до роботи"
+          appium -v
 
       - name: Set APPIUM_JS_PATH
         run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
@@ -139,7 +143,8 @@ jobs:
             lsof -ti :4725 | xargs kill -9
           fi
           nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > appium-ios.log 2>&1 &
-          echo "✅ Appium server started"
+          until curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; do echo "Waiting for Appium..."; sleep 2; done
+          echo "✅ Appium server ready"
 
       - name: Run Maven iOS tests
         run: |
