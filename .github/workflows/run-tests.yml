@@ -82,56 +82,59 @@ jobs:
 
   ios-test:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2
+    - name: Cache Maven packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
 
-      - name: Install Appium and XCUITest driver
-        run: |
-          npm install -g appium@3.0.2
-          appium driver install xcuitest
-          echo "✅ Appium installed"
-          appium -v
+    - name: Install Appium and XCUITest driver
+      run: |
+        npm install -g appium@3.0.2
+        appium driver install xcuitest
+        echo "✅ Appium installed"
+        appium -v
 
-      # 🧩 Ось тут додаємо перед стартом симулятора
-      - name: List available simulators
-        run: xcrun simctl list devices available
+    - name: Find and boot first available iPhone simulator
+      run: |
+        SIM_UDID=$(xcrun simctl list devices available | grep -E 'iPhone .* \([A-F0-9-]{36}\) \(Shutdown\)' | head -1 | awk -F '[()]' '{print $2}')
+        if [ -z "$SIM_UDID" ]; then
+          echo "❌ Не знайдено жодного iPhone симулятора. Перериваю роботу."
+          exit 1
+        fi
+        echo "📱 Booting simulator UDID: $SIM_UDID"
+        xcrun simctl boot "$SIM_UDID" || echo "⚠️ Simulator вже запущено"
+        xcrun simctl list devices
+        echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
+        sleep 20
 
-      - name: Start iOS Simulator
-        shell: bash
-        run: |
-          SIM_DEVICE=$(xcrun simctl list devices available | grep 'iPhone 14' | head -1 | awk -F '[()]' '{print $2}')
-          if [ -z "$SIM_DEVICE" ]; then
-            echo "❌ iPhone 14 не знайдено, шукаємо будь-який доступний iPhone..."
-            SIM_DEVICE=$(xcrun simctl list devices available | grep 'iPhone' | head -1 | awk -F '[()]' '{print $2}')
-          fi
+    - name: Set APPIUM_JS_PATH
+      run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
 
-          if [ -z "$SIM_DEVICE" ]; then
-            echo "❌ Не вдалося знайти жоден симулятор iPhone. Перериваю роботу."
-            exit 1
-          fi
+    - name: Start Appium server (iOS)
+      run: |
+        lsof -i :4725 && echo "Port 4725 in use, killing existing Appium..." && lsof -ti :4725 | xargs kill -9
+        nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > appium-ios.log 2>&1 &
+        until curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; do echo "Waiting for Appium..."; sleep 2; done
 
-          echo "📱 Booting simulator with UDID: $SIM_DEVICE"
-          xcrun simctl boot "$SIM_DEVICE" || echo "⚠️ Simulator already booted"
-          xcrun simctl list devices
-          sleep 20
+    - name: Run Maven iOS tests
+      run: |
+        mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
