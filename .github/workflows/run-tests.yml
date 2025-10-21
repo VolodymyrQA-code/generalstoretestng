@@ -132,36 +132,9 @@ jobs:
 
       - name: Start Appium server (iOS)
         run: |
-          export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js
           nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > appium-ios.log 2>&1 &
           sleep 10
           curl -s http://127.0.0.1:4725/wd/hub/status
-
-      - name: Download iOS app
-        run: |
-          # Завантажуємо zip з Release (тут потрібно вказати правильний URL)
-          curl -L -o TheApp.app.zip https://github.com/your/repo/releases/download/v1.0/TheApp.app.zip
-
-          # Перевіряємо, що файл існує і має розмір > 0
-          if [ ! -s TheApp.app.zip ]; then
-          echo "❌ App download failed"
-          exit 1
-          fi
-
-          # Створюємо папку для розпакування
-          mkdir -p AppIos
-
-          # Розпаковуємо архів у папку AppIos
-          unzip -q TheApp.app.zip -d AppIos
-
-          # Перевіряємо, що .app існує
-          if [ ! -d AppIos/TheApp.app ]; then
-          echo "❌ .app not found after unzip"
-          exit 1
-          fi
-
-          echo "✅ App downloaded and ready at AppIos/TheApp.app"
-
 
       - name: Run Maven iOS tests
         run: |
