@@ -20,7 +20,7 @@ public class IOSBasePage {
                 .setPlatformName("iOS")
                 .setDeviceName("iPhone 14")    // або 17, як тобі треба
                 .setPlatformVersion("18.6")    // версія симулятора
-                .setApp("/Users/IUAR0044/generalstore/AppIos/TheApp.app")
+                .setApp("AppIos/TheApp.app")
                 .setNoReset(true)
                 .setNewCommandTimeout(Duration.ofSeconds(60))
                 .setAutomationName("XCUITest");

@@ -137,6 +137,12 @@ jobs:
           sleep 10
           curl -s http://127.0.0.1:4725/wd/hub/status
 
+      - name: Download iOS app
+        run: |
+          curl -L -o TheApp.app.zip https://github.com/your/repo/releases/download/v1.0/TheApp.app.zip
+          unzip TheApp.app.zip -d AppIos
+
+
       - name: Run Maven iOS tests
         run: |
           mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results

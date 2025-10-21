@@ -30,6 +30,7 @@ out/
 # === Android / Appium ===
 *.apk
 !General-Store.apk
+!TheApp.app
 *.ap_          # згенеровані пакети
 *.dex
 *.class
