@@ -103,6 +103,7 @@ public class HomePage {
             }
 
     public void enterAndVerifyValidName(String name) {
+    wait.until(ExpectedConditions.visibilityOfElementLocated(nameField));
     utils.click(nameField);
     utils.type(nameField, name);
     utils.verifyText(nameField, name); 
@@ -144,6 +145,7 @@ public void verifyFemaleRadioSelected() {
     }
     
      public void clickLetsShop() {
+        wait.until(ExpectedConditions.visibilityOfElementLocated(nameField));
         utils.click(letsShopBtn);
     }
 }

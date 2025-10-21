@@ -110,17 +110,24 @@ jobs:
           npm install -g appium@3.0.2
           appium driver install xcuitest
           export PATH=$PATH:$(npm root -g)/.bin
+          echo "Appium path: $(npm root -g)/appium/build/lib/main.js"
 
       - name: Start iOS Simulator
         run: |
-          SIM_DEVICE="iPhone 14"; UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}'); [ -n "$UDID" ] && (echo "Booting simulator $SIM_DEVICE with UDID $UDID"; xcrun simctl boot "$UDID") || echo "$SIM_DEVICE already booted or not found"
+          SIM_DEVICE="iPhone 14"
+          UDID=$(xcrun simctl list devices | grep "$SIM_DEVICE (.*) (Shutdown)" | awk -F '[()]' '{print $2}')
+          [ -n "$UDID" ] && (echo "Booting simulator $SIM_DEVICE with UDID $UDID"; xcrun simctl boot "$UDID") || echo "$SIM_DEVICE already booted or not found"
           xcrun simctl list devices
 
       - name: Start Appium server (iOS)
         run: |
-          nohup appium -p 4725 --log appium-ios.log --base-path /wd/hub > /dev/null 2>&1 &
+          APPIUM_PATH=$(npm root -g)/appium/build/lib/main.js
+          nohup node "$APPIUM_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > /dev/null 2>&1 &
           sleep 10
           curl -s http://127.0.0.1:4725/wd/hub/status
 
       - name: Run Maven iOS tests
-        run: mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+        run: |
+          # Передаємо java-client фактичний шлях до main.js через змінну середовища
+          export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js
+          mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
