@@ -149,6 +149,9 @@ jobs:
         echo "📌 LOGGING: simctl list devices booted"
         xcrun simctl list devices booted
 
+    - name: 📦 Set APP_PATH for iOS tests
+      run: echo "APP_PATH=/Users/runner/work/_temp/TheApp.app" >> $GITHUB_ENV
+
     - name: Start Appium server (iOS)
       run: |
         APPIUM_CMD=$(which appium)
