@@ -133,13 +133,29 @@ jobs:
 
       - name: Start Appium server (iOS)
         run: |
-          if lsof -i :4725; then
-            echo "Port 4725 in use, killing existing Appium..."
-            lsof -ti :4725 | xargs kill -9
-          fi
+          # Вбити старий Appium, якщо є
+          lsof -ti :4725 | xargs -r kill -9
+
+          # Запустити Appium
           nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > appium-ios.log 2>&1 &
-          SECONDS=0; MAX_WAIT=60; until curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; do [ $SECONDS -ge $MAX_WAIT ] && echo "❌ Appium did not become ready after $MAX_WAIT seconds" && cat appium-ios.log && exit 1; echo "Waiting for Appium..."; sleep 2; done
-          echo "✅ Appium server ready"
+
+          # Чекати готовності Appium
+          MAX_WAIT=120
+          for i in $(seq 1 $MAX_WAIT); do
+            if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+              echo "✅ Appium server ready"
+              break
+            fi
+            echo "Waiting for Appium..."
+            sleep 1
+          done
+
+          # Якщо Appium не став ready після MAX_WAIT секунд
+          if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+            echo "❌ Appium did not become ready after $MAX_WAIT seconds"
+            cat appium-ios.log
+            exit 1
+          fi
 
       - name: Run Maven iOS tests
         run: |
