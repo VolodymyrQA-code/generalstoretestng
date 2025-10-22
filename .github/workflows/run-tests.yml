@@ -80,112 +80,114 @@ jobs:
           name: android-allure-report
           path: target/site/allure-report/
 
-  ios-ios-test:  
+  ios-test:
     runs-on: macos-latest
     timeout-minutes: 50
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Cache Maven packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-m2
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-    - name: Install Appium + XCUITest driver
-      run: |
-        npm install -g appium@3.0.2
-        appium driver install xcuitest
-        echo "✅ Appium installed"
+      - name: Install Appium + XCUITest driver
+        run: |
+          npm install -g appium@3.0.2
+          appium driver install xcuitest
+          echo "✅ Appium installed"
 
-    - name: Select latest Xcode
-      run: |
-        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-        xcodebuild -version
+      - name: Select latest Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
 
-    - name: Install iOS dependencies
-      run: |
-        brew install carthage || true
-        brew install ideviceinstaller ios-deploy libimobiledevice || true
+      - name: Install iOS dependencies
+        run: |
+          brew install carthage || true
+          brew install ideviceinstaller ios-deploy libimobiledevice || true
 
-    - name: Select available iPhone simulator
-      id: select-sim
-      run: |
-        SIM_UDID=$(xcrun simctl list devices available | grep -E "iPhone" | grep -v "iPad" | head -1 | awk -F '[()]' '{print $2}')
-        if [ -z "$SIM_UDID" ]; then
-          echo "❌ No iPhone simulator found"
-          exit 1
-        fi
-        echo "✅ Selected simulator UDID: $SIM_UDID"
-        echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
-
-    - name: Boot iPhone simulator
-      run: |
-        echo "🧹 Preparing simulator..."
-        xcrun simctl erase "$SIM_UDID"
-        xcrun simctl boot "$SIM_UDID" || echo "Already booted"
-        open -a Simulator
-        sleep 20
-
-    - name: Start Appium server (iOS)
-      run: |
-        echo "🛑 Killing any existing Appium processes..."
-        lsof -ti :4725 | xargs -r kill -9 || true
-
-        echo "🚀 Starting Appium on port 4725..."
-        nohup appium -p 4725 \
-          --base-path /wd/hub \
-          --session-override \
-          --relaxed-security \
-          --allow-insecure=chromedriver_autodownload \
-          --wda-launch-timeout 180000 \
-          --wda-connection-timeout 180000 \
-          > appium-ios.log 2>&1 &
-
-        echo "⌛ Waiting for Appium + WDA to become ready..."
-        MAX_WAIT=600   # до 10 хвилин
-        for i in $(seq 1 $MAX_WAIT); do
-          if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
-            echo "✅ Appium server ready after $i seconds"
-            break
-          fi
-          if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
-            echo "❌ Appium process died unexpectedly"
-            tail -n 50 appium-ios.log
+      - name: Select available iPhone simulator
+        id: select-sim
+        run: |
+          SIM_UDID=$(xcrun simctl list devices available | grep -E "iPhone" | grep -v "iPad" | head -1 | awk -F '[()]' '{print $2}')
+          if [ -z "$SIM_UDID" ]; then
+            echo "❌ No iPhone simulator found"
             exit 1
           fi
-          echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
-          sleep 2
-        done
+          echo "✅ Selected simulator UDID: $SIM_UDID"
+          echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
 
-        if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
-          echo "❌ Appium did not become ready after $MAX_WAIT seconds"
-          tail -n 100 appium-ios.log
-          exit 1
-        fi
-      shell: /bin/bash -e {0}
+      - name: Boot iPhone simulator
+        run: |
+          echo "🧹 Preparing simulator..."
+          xcrun simctl erase "$SIM_UDID"
+          xcrun simctl boot "$SIM_UDID" || echo "Already booted"
+          open -a Simulator
+          sleep 40  # додатковий час на старт
 
-    - name: Run Maven iOS tests
-      run: |
-        mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+      - name: Start Appium server (iOS)
+        run: |
+          echo "🛑 Killing any existing Appium processes..."
+          lsof -ti :4725 | xargs -r kill -9 || true
 
-    - name: Upload iOS Allure report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: ios-allure-report
-        path: target/site/allure-report/
+          echo "🚀 Starting Appium on port 4725..."
+          APPIUM_CMD=$(npm bin -g)/appium
+          nohup "$APPIUM_CMD" -p 4725 \
+            --base-path /wd/hub \
+            --session-override \
+            --relaxed-security \
+            --allow-insecure=chromedriver_autodownload \
+            --wda-launch-timeout 240000 \
+            --wda-connection-timeout 240000 \
+            > appium-ios.log 2>&1 &
+
+          echo "⌛ Waiting for Appium + WDA to become ready..."
+          MAX_WAIT=600
+          for i in $(seq 1 $MAX_WAIT); do
+            if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+              echo "✅ Appium server ready after $i seconds"
+              break
+            fi
+            if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
+              echo "❌ Appium process died unexpectedly"
+              tail -n 50 appium-ios.log
+              exit 1
+            fi
+            echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
+            sleep 2
+          done
+
+          if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+            echo "❌ Appium did not become ready after $MAX_WAIT seconds"
+            tail -n 100 appium-ios.log
+            exit 1
+          fi
+        shell: /bin/bash -e {0}
+
+      - name: Run Maven iOS tests
+        run: |
+          mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+
+      - name: Upload iOS Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-allure-report
+          path: target/site/allure-report/
