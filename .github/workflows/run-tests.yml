@@ -80,9 +80,9 @@ jobs:
           name: android-allure-report
           path: target/site/allure-report/
 
-  ios-test:  
+  ios-ios-test:  
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 50
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -104,7 +104,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 20 # LOGGING: стабільна LTS
+        node-version: 22
 
     - name: Install Appium + XCUITest driver
       run: |
@@ -119,15 +119,12 @@ jobs:
       run: |
         sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
         xcodebuild -version
-        sudo xcodebuild -license accept
         echo "📌 LOGGING: Selected Xcode path $(xcode-select -p)"
 
     - name: Install iOS dependencies
       run: |
         brew install carthage || true
         brew install ideviceinstaller ios-deploy libimobiledevice || true
-        echo "📌 LOGGING: brew list --versions"
-        brew list --versions
 
     - name: Select available iPhone simulator
       id: select-sim
@@ -148,12 +145,11 @@ jobs:
         xcrun simctl erase "$SIM_UDID"
         xcrun simctl boot "$SIM_UDID" || echo "Already booted"
         open -a Simulator
-        echo "📌 LOGGING: Waiting for simulator to boot..."
         sleep 40
         echo "📌 LOGGING: simctl list devices booted"
         xcrun simctl list devices booted
 
-    - name: Start Appium server (iOS) with retry
+    - name: Start Appium server (iOS)
       run: |
         APPIUM_CMD=$(which appium)
         echo "📌 LOGGING: Starting Appium using $APPIUM_CMD"
@@ -165,11 +161,9 @@ jobs:
             --session-override \
             --relaxed-security \
             --allow-insecure=chromedriver_autodownload \
-            --wda-launch-timeout 300000 \
-            --wda-connection-timeout 300000 \
             > appium-ios.log 2>&1 &
           sleep 20
-          echo "📌 LOGGING: Checking Appium log snippet"
+          echo "📌 LOGGING: Appium log snippet"
           tail -n 20 appium-ios.log
           if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
             echo "✅ Appium ready after attempt $i"
@@ -189,8 +183,6 @@ jobs:
 
     - name: Run Maven iOS tests
       run: |
-        echo "📌 LOGGING: Maven settings"
-        mvn -v
         mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
 
     - name: Upload iOS Allure report
