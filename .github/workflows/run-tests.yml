@@ -168,10 +168,34 @@ jobs:
 
       - name: Start Appium server (iOS)
         run: |
-          lsof -ti :4725 | xargs -r kill -9
-          nohup node "$APPIUM_JS_PATH" -p 4725 --log appium-ios.log --base-path /wd/hub > appium-ios.log 2>&1 &
-          MAX_WAIT=120
-          for i in $(seq 1 $MAX_WAIT); do curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true' && echo "✅ Appium server ready" && break || echo "Waiting for Appium..."; sleep 1; done; curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true' || (echo "❌ Appium did not become ready after $MAX_WAIT seconds"; echo "---- Appium log ----"; cat appium-ios.log; exit 1)
+          echo "🛑 Killing existing Appium..."
+          lsof -ti :4725 | xargs -r kill -9 || true
+          
+          echo "🚀 Starting Appium on port 4725..."
+          nohup node "$APPIUM_JS_PATH" -p 4725 --base-path /wd/hub --session-override --relaxed-security > appium-ios.log 2>&1 &
+          
+          echo "⌛ Waiting for Appium to become ready..."
+          MAX_WAIT=180
+          for i in $(seq 1 $MAX_WAIT); do
+            if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+              echo "✅ Appium server ready after $i seconds"
+              break
+            fi
+            if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
+              echo "❌ Appium process died unexpectedly"
+              cat appium-ios.log
+              exit 1
+            fi
+            echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
+            sleep 2
+          done
+          
+          if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+            echo "❌ Appium did not become ready after $MAX_WAIT seconds"
+            echo "---- Appium log ----"
+            tail -n 100 appium-ios.log
+            exit 1
+          fi
 
 
       - name: Run Maven iOS tests
