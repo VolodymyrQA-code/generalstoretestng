@@ -153,31 +153,51 @@ jobs:
           echo "🛑 Killing existing Appium..."
           lsof -ti :4725 | xargs -r kill -9 || true
 
+          # Перевіряємо, що Appium JS існує
+          if [ ! -f "$APPIUM_JS_PATH" ]; then
+            echo "❌ Appium JS not found at $APPIUM_JS_PATH"
+            echo "Please check npm global path and Appium installation"
+            exit 1
+          fi
+
           echo "🚀 Starting Appium on port 4725..."
+          # Запускаємо Appium у фоні з логом
           nohup node "$APPIUM_JS_PATH" -p 4725 --base-path /wd/hub --session-override --relaxed-security > appium-ios.log 2>&1 &
 
           echo "⌛ Waiting for Appium to become ready..."
           MAX_WAIT=180
           for i in $(seq 1 $MAX_WAIT); do
-            if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
-              echo "✅ Appium server ready after $i seconds"
-              break
-            fi
-            if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
-              echo "❌ Appium process died unexpectedly"
-              cat appium-ios.log
-              exit 1
-            fi
-            echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
-            sleep 2
+          # Перевіряємо, чи процес ще живий
+          APP_PID=$(lsof -ti :4725)
+          if [ -z "$APP_PID" ] || ! ps -p $APP_PID > /dev/null 2>&1; then
+            echo "❌ Appium process died unexpectedly"
+            tail -n 100 appium-ios.log
+            exit 1
+          fi
+
+          # Перевіряємо, чи Appium готовий
+          if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+            echo "✅ Appium server ready after $i seconds"
+            break
+          fi
+
+          echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
+          sleep 2
           done
 
+          # Якщо по таймауту не готовий
           if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
             echo "❌ Appium did not become ready after $MAX_WAIT seconds"
             echo "---- Last 100 lines of Appium log ----"
             tail -n 100 appium-ios.log
             exit 1
           fi
+        shell: /bin/bash -e {0}
+        env:
+          JAVA_HOME: /Users/runner/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/arm64/Contents/Home
+          JAVA_HOME_17_ARM64: /Users/runner/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/arm64/Contents/Home
+          SIM_UDID: ${{ env.SIM_UDID }}
+          APPIUM_JS_PATH: ${{ env.APPIUM_JS_PATH }}
 
       - name: Run Maven iOS tests
         run: |
