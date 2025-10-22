@@ -145,7 +145,7 @@ jobs:
       - name: Set APPIUM_JS_PATH
         run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
 
-      - name: Start Appium server (iOS) and wait for WDA
+      - name: Start Appium server (iOS)
         run: |
           echo "🛑 Killing any existing Appium processes..."
           lsof -ti :4725 | xargs -r kill -9 || true
@@ -154,51 +154,42 @@ jobs:
           node -v
           npm root -g
 
-          if [ ! -f "$APPIUM_JS_PATH" ]; then
-            echo "❌ Appium JS not found at $APPIUM_JS_PATH"
+          # Отримуємо правильний шлях до Appium
+          APPIUM_JS_PATH=$(which appium)
+          if [ -z "$APPIUM_JS_PATH" ]; then
+            echo "❌ Appium not found in PATH"
             exit 1
           fi
-          echo "✅ Appium JS found at $APPIUM_JS_PATH"
+          echo "✅ Appium found at $APPIUM_JS_PATH"
+          echo "APPIUM_JS_PATH=$APPIUM_JS_PATH" >> $GITHUB_ENV
 
           echo "🚀 Starting Appium on port 4725..."
-          nohup node "$APPIUM_JS_PATH" -p 4725 --base-path /wd/hub --session-override --relaxed-security > appium-ios.log 2>&1 &
-          sleep 5
+          nohup "$APPIUM_JS_PATH" -p 4725 --base-path /wd/hub --session-override --relaxed-security > appium-ios.log 2>&1 &
 
-          echo "⌛ Waiting for Appium server to be ready..."
-          MAX_WAIT=180
+          echo "⌛ Waiting for Appium + WDA to become ready..."
+          MAX_WAIT=600   # до 10 хвилин для WDA на CI
           for i in $(seq 1 $MAX_WAIT); do
-          if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
-            echo "✅ Appium server ready after $i seconds"
-            break
-          fi
+            if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+              echo "✅ Appium server ready after $i seconds"
+              break
+            fi
+            if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
+              echo "❌ Appium process died unexpectedly"
+              tail -n 50 appium-ios.log
+              exit 1
+            fi
           echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
           sleep 2
           done
 
           if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
             echo "❌ Appium did not become ready after $MAX_WAIT seconds"
-            tail -n 100 appium-ios.log
-            exit 1
-          fi
-
-          echo "⌛ Waiting for WDA to fully start on simulator..."
-          MAX_WAIT_WDA=600
-          for i in $(seq 1 $MAX_WAIT_WDA); do
-          LOG=$(grep -i "WebDriverAgent running" appium-ios.log || true)
-          if [ ! -z "$LOG" ]; then
-            echo "✅ WDA is running after $i seconds"
-            break
-          fi
-          echo "⏳ Waiting for WDA... ($i/$MAX_WAIT_WDA)"
-          sleep 5
-          done
-
-          if [ -z "$(grep -i "WebDriverAgent running" appium-ios.log)" ]; then
-            echo "❌ WDA did not start in time"
+            echo "---- Last 100 lines of Appium log ----"
             tail -n 100 appium-ios.log
             exit 1
           fi
         shell: /bin/bash -e {0}
+
 
       - name: Run Maven iOS tests
         run: |
