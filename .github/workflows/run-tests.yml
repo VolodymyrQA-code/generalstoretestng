@@ -133,47 +133,50 @@ jobs:
           echo "✅ Вибрано симулятор UDID: $SIM_UDID"
           echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
 
-      - name: Boot simulator
+      - name: Boot iPhone simulator
         run: |
-          xcrun simctl boot "$SIM_UDID" || echo "Already booted"
-          xcrun simctl bootstatus "$SIM_UDID" -b || echo "Bootstatus timed out, continuing"
+          echo "🧹 Resetting simulators..."
+          xcrun simctl shutdown all || true
+          xcrun simctl erase "$SIM_UDID" || true
+          xcrun simctl boot "$SIM_UDID" || echo "Simulator already booted"
+          xcrun simctl bootstatus "$SIM_UDID" -b || echo "⚠️ Bootstatus timeout, continuing anyway"
           open -a Simulator
-          sleep 10
+          echo "🕒 Giving simulator extra time to fully load..."
+          sleep 20
+          echo "✅ Simulator should now be ready"
 
       - name: Set APPIUM_JS_PATH
         run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
 
-      - name: Start Appium server (iOS, soft-fail)
+      - name: Start Appium server (iOS)
         run: |
           echo "🛑 Killing existing Appium..."
           lsof -ti :4725 | xargs -r kill -9 || true
 
           echo "🚀 Starting Appium on port 4725..."
           nohup node "$APPIUM_JS_PATH" -p 4725 --base-path /wd/hub --session-override --relaxed-security > appium-ios.log 2>&1 &
-          APPIUM_PID=$!
 
           echo "⌛ Waiting for Appium to become ready..."
           MAX_WAIT=180
-          APP_READY=false
           for i in $(seq 1 $MAX_WAIT); do
             if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
               echo "✅ Appium server ready after $i seconds"
-              APP_READY=true
               break
             fi
-            if ! ps -p $APPIUM_PID > /dev/null 2>&1; then
+            if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
               echo "❌ Appium process died unexpectedly"
-              tail -n 50 appium-ios.log
-              break
+              cat appium-ios.log
+              exit 1
             fi
             echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
             sleep 2
           done
 
-          if [ "$APP_READY" = false ]; then
-            echo "⚠️ Appium did not become ready. Showing last 100 lines of log:"
+          if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+            echo "❌ Appium did not become ready after $MAX_WAIT seconds"
+            echo "---- Last 100 lines of Appium log ----"
             tail -n 100 appium-ios.log
-            echo "Continuing workflow for debug purposes..."
+            exit 1
           fi
 
       - name: Run Maven iOS tests
