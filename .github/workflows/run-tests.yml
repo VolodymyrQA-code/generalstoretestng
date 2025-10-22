@@ -150,7 +150,7 @@ jobs:
         xcrun simctl list devices booted
 
     - name: 📦 Set APP_PATH for iOS tests
-      run: echo "APP_PATH=/Users/runner/work/_temp/TheApp.app" >> $GITHUB_ENV
+      run: echo "APP_PATH=$GITHUB_WORKSPACE/AppIos/TheApp.app" >> $GITHUB_ENV
 
     - name: Start Appium server (iOS)
       run: |
