@@ -80,7 +80,7 @@ jobs:
           name: android-allure-report
           path: target/site/allure-report/
 
-  ios-test:
+  iosios-test:  
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
@@ -135,20 +135,33 @@ jobs:
 
     - name: Boot iPhone simulator
       run: |
+        echo "🧹 Resetting simulator..."
+        xcrun simctl shutdown "$SIM_UDID" || true
+        xcrun simctl erase "$SIM_UDID" || true
         xcrun simctl boot "$SIM_UDID" || echo "Already booted"
         open -a Simulator
-        sleep 10
+        sleep 15
 
     - name: Set APPIUM_JS_PATH
-      run: echo "APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
+      run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
 
-    - name: Start Appium server (iOS) and wait until ready
+    - name: Start Appium server (iOS)
       run: |
-        echo "🛑 Killing existing Appium processes..."
+        echo "🛑 Killing any existing Appium processes..."
         lsof -ti :4725 | xargs -r kill -9 || true
+
+        echo "🔍 Checking Node.js and Appium installation..."
+        node -v
+        npm root -g
+        if [ ! -f "$APPIUM_JS_PATH" ]; then
+          echo "❌ Appium JS not found at $APPIUM_JS_PATH"
+          exit 1
+        fi
+        echo "✅ Appium JS found at $APPIUM_JS_PATH"
 
         echo "🚀 Starting Appium on port 4725..."
         nohup node "$APPIUM_JS_PATH" -p 4725 --base-path /wd/hub --session-override --relaxed-security > appium-ios.log 2>&1 &
+        sleep 5
 
         echo "⌛ Waiting for Appium to become ready..."
         MAX_WAIT=180
@@ -159,7 +172,7 @@ jobs:
           fi
           if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
             echo "❌ Appium process died unexpectedly"
-            tail -n 100 appium-ios.log
+            tail -n 50 appium-ios.log
             exit 1
           fi
           echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
@@ -172,6 +185,7 @@ jobs:
           tail -n 100 appium-ios.log
           exit 1
         fi
+      shell: /bin/bash -e {0}
 
     - name: Run Maven iOS tests
       run: |
