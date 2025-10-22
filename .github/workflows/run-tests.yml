@@ -154,35 +154,23 @@ jobs:
 
     - name: Start Appium server (iOS)
       run: |
+        echo "📌 LOGGING: Starting Appium..."
         APPIUM_CMD=$(which appium)
-        echo "📌 LOGGING: Starting Appium using $APPIUM_CMD"
-        MAX_RETRIES=3
-        for i in $(seq 1 $MAX_RETRIES); do
-          echo "🛑 Attempt $i to start Appium..."
-          nohup "$APPIUM_CMD" -p 4725 \
-            --base-path /wd/hub \
-            --session-override \
-            --relaxed-security \
-            --allow-insecure=chromedriver_autodownload \
-            > appium-ios.log 2>&1 &
-          sleep 20
-          echo "📌 LOGGING: Appium log snippet"
-          tail -n 20 appium-ios.log
-          if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
-            echo "✅ Appium ready after attempt $i"
-            break
-          fi
-          echo "⚠️ Appium not ready, killing process and retrying..."
-          pkill -f appium
-          sleep 5
-        done
+        echo "📌 LOGGING: Using Appium binary at $APPIUM_CMD"
 
-        if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
-          echo "❌ Appium failed after $MAX_RETRIES attempts"
-          echo "📌 LOGGING: Last 100 lines of appium-ios.log"
-          tail -n 100 appium-ios.log
-          exit 1
-        fi
+        # Запускаємо Appium у фоні без nohup (щоб GitHub runner не вбивав процес)
+        $APPIUM_CMD -p 4725 \
+          --base-path /wd/hub \
+          --session-override \
+          --relaxed-security \
+          --allow-insecure=chromedriver_autodownload \
+          > appium-ios.log 2>&1 &
+
+        echo "📌 LOGGING: Waiting for Appium to be ready..."
+        npx wait-on http://127.0.0.1:4725/wd/hub/status
+
+        echo "✅ Appium is up and running!"
+        tail -n 20 appium-ios.log
 
     - name: Run Maven iOS tests
       run: |
