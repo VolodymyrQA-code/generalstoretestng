@@ -80,7 +80,7 @@ jobs:
           name: android-allure-report
           path: target/site/allure-report/
 
-  iosios-test:  
+  ios-test:
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
@@ -143,7 +143,7 @@ jobs:
         sleep 15
 
     - name: Set APPIUM_JS_PATH
-      run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
+      run: echo "APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
 
     - name: Start Appium server (iOS)
       run: |
@@ -153,11 +153,11 @@ jobs:
         echo "🔍 Checking Node.js and Appium installation..."
         node -v
         npm root -g
+        echo "✅ APPIUM_JS_PATH: $APPIUM_JS_PATH"
         if [ ! -f "$APPIUM_JS_PATH" ]; then
           echo "❌ Appium JS not found at $APPIUM_JS_PATH"
           exit 1
         fi
-        echo "✅ Appium JS found at $APPIUM_JS_PATH"
 
         echo "🚀 Starting Appium on port 4725..."
         nohup node "$APPIUM_JS_PATH" -p 4725 --base-path /wd/hub --session-override --relaxed-security > appium-ios.log 2>&1 &
@@ -181,7 +181,6 @@ jobs:
 
         if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
           echo "❌ Appium did not become ready after $MAX_WAIT seconds"
-          echo "---- Last 100 lines of Appium log ----"
           tail -n 100 appium-ios.log
           exit 1
         fi
