@@ -83,6 +83,7 @@ jobs:
   ios-test:  
     runs-on: macos-latest
     timeout-minutes: 50
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -127,15 +128,14 @@ jobs:
         run: |
           SIM_UDID=$(xcrun simctl list devices available | grep -E "iPhone" | grep -v "iPad" | head -1 | awk -F '[()]' '{print $2}')
           if [ -z "$SIM_UDID" ]; then
-            echo "❌ Не знайдено доступний iPhone симулятор"
+            echo "❌ No available iPhone simulator"
             exit 1
           fi
-          echo "✅ Вибрано симулятор UDID: $SIM_UDID"
+          echo "✅ Selected simulator UDID: $SIM_UDID"
           echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
 
       - name: Boot iPhone simulator
         run: |
-          echo "🧹 Resetting simulator..."
           xcrun simctl shutdown "$SIM_UDID" || true
           xcrun simctl erase "$SIM_UDID" || true
           xcrun simctl boot "$SIM_UDID" || echo "Already booted"
@@ -143,53 +143,46 @@ jobs:
           sleep 15
 
       - name: Set APPIUM_JS_PATH
-        run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
+        run: echo "export APPIUM_JS_PATH=$(which appium)" >> $GITHUB_ENV
 
-      - name: Start Appium server (iOS)
+      - name: Start Appium server (iOS) with auto-restart
         run: |
-          echo "🛑 Killing any existing Appium processes..."
-          lsof -ti :4725 | xargs -r kill -9 || true
+          MAX_RETRIES=3
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "🛑 Attempt $attempt to start Appium..."
+            lsof -ti :4725 | xargs -r kill -9 || true
 
-          echo "🔍 Checking Node.js and Appium installation..."
-          node -v
-          npm root -g
+            mkdir -p "$GITHUB_WORKSPACE/wda-logs"
+            nohup "$(which appium)" \
+              -p 4725 \
+              --base-path /wd/hub \
+              --session-override \
+              --relaxed-security \
+              --allow-insecure=chromedriver_autodownload \
+              --wda-launch-timeout 180000 \
+              --wda-connection-timeout 180000 \
+              > "$GITHUB_WORKSPACE/wda-logs/appium-ios.log" 2>&1 &
 
-          # Отримуємо правильний шлях до Appium
-          APPIUM_JS_PATH=$(which appium)
-          if [ -z "$APPIUM_JS_PATH" ]; then
-            echo "❌ Appium not found in PATH"
-            exit 1
-          fi
-          echo "✅ Appium found at $APPIUM_JS_PATH"
-          echo "APPIUM_JS_PATH=$APPIUM_JS_PATH" >> $GITHUB_ENV
-
-          echo "🚀 Starting Appium on port 4725..."
-          nohup "$APPIUM_JS_PATH" -p 4725 --base-path /wd/hub --session-override --relaxed-security > appium-ios.log 2>&1 &
-
-          echo "⌛ Waiting for Appium + WDA to become ready..."
-          MAX_WAIT=600   # до 10 хвилин для WDA на CI
-          for i in $(seq 1 $MAX_WAIT); do
-            if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
-              echo "✅ Appium server ready after $i seconds"
-              break
-            fi
-            if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
-              echo "❌ Appium process died unexpectedly"
-              tail -n 50 appium-ios.log
-              exit 1
-            fi
-          echo "⏳ Waiting for Appium... ($i/$MAX_WAIT)"
-          sleep 2
+            MAX_WAIT=600
+            for i in $(seq 1 $MAX_WAIT); do
+              if curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
+                echo "✅ Appium server ready after $i seconds"
+                exit 0
+              fi
+              if ! ps -p $(lsof -ti :4725) > /dev/null 2>&1; then
+                echo "❌ Appium died during attempt $attempt"
+                tail -n 50 "$GITHUB_WORKSPACE/wda-logs/appium-ios.log"
+                break
+              fi
+              sleep 2
+            done
+            echo "⚠️ Retry Appium..."
+            sleep 5
           done
-
-          if ! curl -s http://127.0.0.1:4725/wd/hub/status | grep -q '"ready":true'; then
-            echo "❌ Appium did not become ready after $MAX_WAIT seconds"
-            echo "---- Last 100 lines of Appium log ----"
-            tail -n 100 appium-ios.log
-            exit 1
-          fi
+          echo "❌ Appium failed after $MAX_RETRIES attempts"
+          tail -n 100 "$GITHUB_WORKSPACE/wda-logs/appium-ios.log"
+          exit 1
         shell: /bin/bash -e {0}
-
 
       - name: Run Maven iOS tests
         run: |
