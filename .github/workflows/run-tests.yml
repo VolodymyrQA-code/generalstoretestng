@@ -133,10 +133,28 @@ jobs:
           echo "✅ Вибрано симулятор UDID: $SIM_UDID"
           echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
 
-      - name: Boot iPhone simulator
+      - name: Boot iPhone simulator (stable)
         run: |
+          echo "🧹 Resetting simulators..."
+          # Закриваємо і очищаємо старі, щоб уникнути залипань
+          xcrun simctl shutdown all || true
+          xcrun simctl erase all || true
+
+          echo "🚀 Booting simulator $SIM_UDID..."
           xcrun simctl boot "$SIM_UDID" || echo "Simulator already booted"
-          xcrun simctl bootstatus "$SIM_UDID" -b
+
+          echo "⌛ Waiting for boot status..."
+          # Збільшуємо таймаут, щоб дочекатись завершення Data Migration
+          xcrun simctl bootstatus "$SIM_UDID" -b -t 180 || echo "⚠️ Bootstatus timed out, continuing anyway"
+
+          # Переконуємось, що симулятор GUI реально запущений
+          open -a Simulator
+
+          echo "🕒 Giving simulator extra time to fully load..."
+          sleep 20
+
+          echo "✅ Simulator should now be ready."
+
 
       - name: Set APPIUM_JS_PATH
         run: echo "export APPIUM_JS_PATH=$(npm root -g)/appium/build/lib/main.js" >> $GITHUB_ENV
