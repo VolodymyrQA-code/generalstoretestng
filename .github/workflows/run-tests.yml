@@ -76,7 +76,7 @@ jobs:
             export CI=true
             adb install -r $GITHUB_WORKSPACE/app/General-Store.apk
             sleep 20
-            adb shell dumpsys window windows | grep -E 'mCurrentFocus'
+            adb shell dumpsys window windows | grep -E 'mCurrentFocus' || true
             mvn clean test -Pandroid -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsAndroid.xml -Dallure.results.directory=target/allure-results
             exit ${TEST_EXIT_CODE:-0}
 
