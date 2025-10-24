@@ -9,5 +9,5 @@ For iOs Test start Xcode -> Emulator
 appium --base-path /wd/hub -p 4725
 mvn test -Dtest=IOSSuite
 
-For Api Test 
+For Api Test ()
 mvn test -Dtest=ApiSuite
