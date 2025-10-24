@@ -117,7 +117,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <configuration>
                         <suiteXmlFiles>
-                            <suiteXmlFile>AllTestsAndroid.xml</suiteXmlFile>
+                            <suiteXmlFile>${project.basedir}/src/test/resources/AllTestsAndroid.xml</suiteXmlFile>
                         </suiteXmlFiles>
                     </configuration>
                 </plugin>
@@ -135,7 +135,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <configuration>
                         <suiteXmlFiles>
-                            <suiteXmlFile>AllTestsApi.xml</suiteXmlFile>
+                            <suiteXmlFile>${project.basedir}/src/test/resources/AllTestsApi.xml</suiteXmlFile>
                         </suiteXmlFiles>
                     </configuration>
                 </plugin>
@@ -153,7 +153,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <configuration>
                         <suiteXmlFiles>
-                            <suiteXmlFile>AllTestsIOS.xml</suiteXmlFile>
+                            <suiteXmlFile>${project.basedir}/src/test/resources/AllTestsIOS.xml</suiteXmlFile>
                         </suiteXmlFiles>
                     </configuration>
                 </plugin>

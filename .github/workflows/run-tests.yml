@@ -6,6 +6,7 @@ on:
 
 jobs:
   android-test:
+
     runs-on: ubuntu-latest
     timeout-minutes: 40
 
@@ -64,7 +65,7 @@ jobs:
           script: |
             export CI=true
             adb install -r $GITHUB_WORKSPACE/app/General-Store.apk
-            mvn -B clean test -Pandroid -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results || TEST_EXIT_CODE=$?
+            mvn clean test -Pandroid -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsAndroid.xml -Dallure.results.directory=target/allure-results
             exit ${TEST_EXIT_CODE:-0}
 
       - name: Upload Android screenshots
@@ -81,6 +82,7 @@ jobs:
           path: target/site/allure-report/
 
   ios-ios-test:  
+
     runs-on: macos-latest
     timeout-minutes: 50
     steps:
@@ -174,7 +176,7 @@ jobs:
 
     - name: Run Maven iOS tests
       run: |
-        mvn clean test -Pios -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+                  mvn clean test -Pios -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsIOS.xml -Dallure.results.directory=target/allure-results
 
     - name: Upload iOS Allure report
       if: always()
@@ -184,6 +186,7 @@ jobs:
         path: target/site/allure-report/
         
   api-test:
+
     name: 🧪 API Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -208,7 +211,7 @@ jobs:
 
       - name: Run API tests with Maven
         run: |
-          mvn clean test -Papi -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results
+          mvn clean test -Papi -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsApi.xml -Dallure.results.directory=target/allure-results
 
       - name: Upload Allure results (API)
         if: always()
@@ -216,6 +219,7 @@ jobs:
         with:
           name: api-allure-results
           path: target/allure-results/
+
 
       - name: Generate Allure report (optional)
         if: always()
