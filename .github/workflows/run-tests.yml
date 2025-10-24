@@ -43,9 +43,10 @@ jobs:
 
       - name: Install Allure CLI
         run: |
-          sudo apt-add-repository ppa:qameta/allure -y
-          sudo apt-get update
-          sudo apt-get install allure -y
+          ALLURE_VERSION=2.27.1
+          wget https://github.com/allure-framework/allure2/releases/download/$ALLURE_VERSION/allure-$ALLURE_VERSION.zip
+          unzip -o allure-$ALLURE_VERSION.zip -d $HOME/allure
+          echo "$HOME/allure/allure-$ALLURE_VERSION/bin" >> $GITHUB_PATH
           allure --version
 
       - name: Install Appium (Android)
@@ -218,9 +219,10 @@ jobs:
 
       - name: Install Allure CLI
         run: |
-          sudo apt-add-repository ppa:qameta/allure -y
-          sudo apt-get update
-          sudo apt-get install allure -y
+          ALLURE_VERSION=2.27.1
+          wget https://github.com/allure-framework/allure2/releases/download/$ALLURE_VERSION/allure-$ALLURE_VERSION.zip
+          unzip -o allure-$ALLURE_VERSION.zip -d $HOME/allure
+          echo "$HOME/allure/allure-$ALLURE_VERSION/bin" >> $GITHUB_PATH
           allure --version
 
       - name: Cache Maven packages
