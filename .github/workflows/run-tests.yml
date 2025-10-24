@@ -46,8 +46,10 @@ jobs:
           ALLURE_VERSION=2.35.1
           wget https://github.com/allure-framework/allure2/releases/download/$ALLURE_VERSION/allure-$ALLURE_VERSION.zip
           unzip -o allure-$ALLURE_VERSION.zip -d $HOME/allure
-          echo "$HOME/allure/allure-$ALLURE_VERSION/bin" >> $GITHUB_PATH
-          allure --version
+          echo $HOME/allure/allure-$ALLURE_VERSION/bin >> $GITHUB_PATH
+          echo "Added Allure to PATH"
+      - name: Check Allure version
+        run: allure --version
 
       - name: Install Appium (Android)
         run: |
@@ -74,7 +76,7 @@ jobs:
             export CI=true
             adb install -r $GITHUB_WORKSPACE/app/General-Store.apk
             sleep 20
-            adb shell dumpsys window windows | grep -E 'mCurrentFocus' || true
+            adb shell dumpsys window windows | grep -E 'mCurrentFocus'
             mvn clean test -Pandroid -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsAndroid.xml -Dallure.results.directory=target/allure-results
             exit ${TEST_EXIT_CODE:-0}
 
@@ -172,6 +174,7 @@ jobs:
         APPIUM_CMD=$(which appium)
         echo "📌 LOGGING: Using Appium binary at $APPIUM_CMD"
 
+        # Запускаємо Appium у фоні без nohup (щоб GitHub runner не вбивав процес)
         $APPIUM_CMD -p 4725 \
           --base-path /wd/hub \
           --session-override \
@@ -187,6 +190,7 @@ jobs:
 
     - name: 📦 Set APP_PATH for iOS tests
       run: echo "APP_PATH=$GITHUB_WORKSPACE/AppIos/TheApp.app" >> $GITHUB_ENV
+
 
     - name: Run Maven iOS tests
       run: |
@@ -242,6 +246,7 @@ jobs:
           name: api-allure-results
           path: target/allure-results/
 
+
       - name: Generate Allure report (optional)
         if: always()
         run: |
@@ -253,3 +258,4 @@ jobs:
         with:
           name: api-allure-report
           path: target/site/allure-report/
+
