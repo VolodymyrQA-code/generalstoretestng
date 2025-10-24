@@ -224,8 +224,10 @@ jobs:
           ALLURE_VERSION=2.35.1
           wget https://github.com/allure-framework/allure2/releases/download/$ALLURE_VERSION/allure-$ALLURE_VERSION.zip
           unzip -o allure-$ALLURE_VERSION.zip -d $HOME/allure
-          echo "$HOME/allure/allure-$ALLURE_VERSION/bin" >> $GITHUB_PATH
-          allure --version
+          echo $HOME/allure/allure-$ALLURE_VERSION/bin >> $GITHUB_PATH
+          echo "Added Allure to PATH"
+      - name: Check Allure version
+        run: allure --version
 
       - name: Cache Maven packages
         uses: actions/cache@v4
