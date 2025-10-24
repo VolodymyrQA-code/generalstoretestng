@@ -15,7 +15,7 @@ import java.nio.file.Files;
 import java.time.Duration;
 
 /**
- * Базовий клас для ініціалізації iOS-драйвера та допоміжних методів.
+ * Базовий клас для стабільного старту iOS-драйвера на GitHub Actions CI.
  */
 public class IOSBasePage {
 
@@ -31,7 +31,7 @@ public class IOSBasePage {
         System.out.println("🚀 LOGGING: Ініціалізуємо iOS Driver...");
 
         try {
-            // ✅ Динамічне визначення шляху до TheApp.app
+            // Динамічний шлях до .app
             String projectDir = System.getProperty("user.dir");
             String appPath = System.getenv("APP_PATH");
 
@@ -47,16 +47,22 @@ public class IOSBasePage {
                 System.out.println("📦 LOGGING: APP_PATH з env → " + appPath);
             }
 
+            String simUdid = System.getenv("SIM_UDID");
+            if (simUdid == null || simUdid.isEmpty()) {
+                throw new RuntimeException("❌ SIM_UDID не знайдено у змінних оточення!");
+            }
+
             BaseOptions options = new BaseOptions()
                     .amend("platformName", "iOS")
                     .amend("automationName", "XCUITest")
                     .amend("deviceName", "iPhone 16 Pro")
                     .amend("platformVersion", "18.4")
-                    .amend("udid", System.getenv("SIM_UDID"))
+                    .amend("udid", simUdid)
                     .amend("newCommandTimeout", 300)
-                    .amend("noReset", false);
+                    .amend("noReset", false)
+                    .amend("wdaLaunchTimeout", 180000)  // 3 хв
+                    .amend("useNewWDA", true);
 
-            // Якщо є .app — використовуємо його, інакше bundleId
             if (appPath != null && !appPath.isEmpty()) {
                 options.amend("app", appPath);
             } else {
@@ -90,7 +96,7 @@ public class IOSBasePage {
     }
 
     /**
-     * 📸 Збереження скриншоту.
+     * 📸 Збереження скриншоту
      */
     public static void takeScreenshot(String name) {
         if (driver == null) {

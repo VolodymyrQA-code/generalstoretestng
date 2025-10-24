@@ -41,6 +41,13 @@ jobs:
         with:
           node-version: 22.19.0
 
+      - name: Install Allure CLI
+        run: |
+          sudo apt-add-repository ppa:qameta/allure -y
+          sudo apt-get update
+          sudo apt-get install allure -y
+          allure --version
+
       - name: Install Appium (Android)
         run: |
           npm install -g appium@3.0.2
@@ -65,6 +72,8 @@ jobs:
           script: |
             export CI=true
             adb install -r $GITHUB_WORKSPACE/app/General-Store.apk
+            sleep 20
+            adb shell dumpsys window windows | grep -E 'mCurrentFocus'
             mvn clean test -Pandroid -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsAndroid.xml -Dallure.results.directory=target/allure-results
             exit ${TEST_EXIT_CODE:-0}
 
@@ -81,7 +90,7 @@ jobs:
           name: android-allure-report
           path: target/site/allure-report/
 
-  ios-ios-test:  
+  ios-test:  
 
     runs-on: macos-latest
     timeout-minutes: 50
@@ -107,6 +116,11 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: 22
+
+    - name: Install Allure CLI
+      run: |
+        brew install allure
+        allure --version
 
     - name: Install Appium + XCUITest driver
       run: |
@@ -151,9 +165,6 @@ jobs:
         echo "📌 LOGGING: simctl list devices booted"
         xcrun simctl list devices booted
 
-    - name: 📦 Set APP_PATH for iOS tests
-      run: echo "APP_PATH=$GITHUB_WORKSPACE/AppIos/TheApp.app" >> $GITHUB_ENV
-
     - name: Start Appium server (iOS)
       run: |
         echo "📌 LOGGING: Starting Appium..."
@@ -174,9 +185,13 @@ jobs:
         echo "✅ Appium is up and running!"
         tail -n 20 appium-ios.log
 
+    - name: 📦 Set APP_PATH for iOS tests
+      run: echo "APP_PATH=$GITHUB_WORKSPACE/AppIos/TheApp.app" >> $GITHUB_ENV
+
+
     - name: Run Maven iOS tests
       run: |
-                  mvn clean test -Pios -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsIOS.xml -Dallure.results.directory=target/allure-results
+        mvn clean test -Pios -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsIOS.xml -Dallure.results.directory=target/allure-results
 
     - name: Upload iOS Allure report
       if: always()
@@ -200,6 +215,13 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+
+      - name: Install Allure CLI
+        run: |
+          sudo apt-add-repository ppa:qameta/allure -y
+          sudo apt-get update
+          sudo apt-get install allure -y
+          allure --version
 
       - name: Cache Maven packages
         uses: actions/cache@v4
