@@ -7,3 +7,6 @@ Then mvn test -Dtest=AllTestsSuite
 
 For iOs Test start Xcode -> Emulator
 mvn test -Dtest=IOSSuite
+
+For Api Test 
+mvn test -Dtest=ApiSuite
