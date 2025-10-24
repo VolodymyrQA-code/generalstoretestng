@@ -6,6 +6,7 @@ on:
 
 jobs:
   android-test:
+
     runs-on: ubuntu-latest
     timeout-minutes: 40
 
@@ -40,17 +41,12 @@ jobs:
         with:
           node-version: 22.19.0
 
-      - name: Install unzip
-        run: sudo apt-get install -y unzip wget
-
       - name: Install Allure CLI
         run: |
           ALLURE_VERSION=2.35.1
-          mkdir -p $HOME/allure
           wget https://github.com/allure-framework/allure2/releases/download/$ALLURE_VERSION/allure-$ALLURE_VERSION.zip
           unzip -o allure-$ALLURE_VERSION.zip -d $HOME/allure
           echo "$HOME/allure/allure-$ALLURE_VERSION/bin" >> $GITHUB_PATH
-          export PATH=$HOME/allure/allure-$ALLURE_VERSION/bin:$PATH
           allure --version
 
       - name: Install Appium (Android)
@@ -78,7 +74,7 @@ jobs:
             export CI=true
             adb install -r $GITHUB_WORKSPACE/app/General-Store.apk
             sleep 20
-            adb shell dumpsys window windows | grep -E 'mCurrentFocus'
+            adb shell dumpsys window windows | grep -E 'mCurrentFocus' || true
             mvn clean test -Pandroid -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsAndroid.xml -Dallure.results.directory=target/allure-results
             exit ${TEST_EXIT_CODE:-0}
 
@@ -95,93 +91,116 @@ jobs:
           name: android-allure-report
           path: target/site/allure-report/
 
-  ios-test:
+  ios-test:  
+
     runs-on: macos-latest
     timeout-minutes: 50
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2
+    - name: Cache Maven packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
 
-      - name: Install Allure CLI
-        run: |
-          brew install allure
-          allure --version
+    - name: Install Allure CLI
+      run: |
+        brew install allure
+        allure --version
 
-      - name: Install Appium + XCUITest driver
-        run: |
-          npm install -g appium@3.0.2
-          appium driver install xcuitest
-          echo "✅ Appium installed"
+    - name: Install Appium + XCUITest driver
+      run: |
+        npm install -g appium@3.0.2
+        appium driver install xcuitest
+        echo "✅ Appium installed"
+        echo "📌 LOGGING: node version $(node -v)"
+        echo "📌 LOGGING: npm global root $(npm root -g)"
+        echo "📌 LOGGING: which appium $(which appium)"
 
-      - name: Select latest Xcode
-        run: |
-          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-          xcodebuild -version
+    - name: Select latest Xcode
+      run: |
+        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+        xcodebuild -version
+        echo "📌 LOGGING: Selected Xcode path $(xcode-select -p)"
 
-      - name: Install iOS dependencies
-        run: |
-          brew install carthage || true
-          brew install ideviceinstaller ios-deploy libimobiledevice || true
+    - name: Install iOS dependencies
+      run: |
+        brew install carthage || true
+        brew install ideviceinstaller ios-deploy libimobiledevice || true
 
-      - name: Select available iPhone simulator
-        id: select-sim
-        run: |
-          SIM_UDID=$(xcrun simctl list devices available | grep -E "iPhone" | grep -v "iPad" | head -1 | awk -F '[()]' '{print $2}')
-          if [ -z "$SIM_UDID" ]; then
-            echo "❌ No iPhone simulator found"
-            exit 1
-          fi
-          echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
+    - name: Select available iPhone simulator
+      id: select-sim
+      run: |
+        SIM_UDID=$(xcrun simctl list devices available | grep -E "iPhone" | grep -v "iPad" | head -1 | awk -F '[()]' '{print $2}')
+        if [ -z "$SIM_UDID" ]; then
+          echo "❌ No iPhone simulator found"
+          exit 1
+        fi
+        echo "✅ Selected simulator UDID: $SIM_UDID"
+        echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
+        echo "📌 LOGGING: simctl list devices available"
+        xcrun simctl list devices available
 
-      - name: Boot iPhone simulator
-        run: |
-          xcrun simctl erase "$SIM_UDID"
-          xcrun simctl boot "$SIM_UDID" || echo "Already booted"
-          open -a Simulator
-          sleep 40
+    - name: Boot iPhone simulator
+      run: |
+        echo "🧹 Preparing simulator..."
+        xcrun simctl erase "$SIM_UDID"
+        xcrun simctl boot "$SIM_UDID" || echo "Already booted"
+        open -a Simulator
+        sleep 40
+        echo "📌 LOGGING: simctl list devices booted"
+        xcrun simctl list devices booted
 
-      - name: Start Appium server (iOS)
-        run: |
-          APPIUM_CMD=$(which appium)
-          $APPIUM_CMD -p 4725 --base-path /wd/hub --session-override --relaxed-security --allow-insecure=chromedriver_autodownload > appium-ios.log 2>&1 &
-          npx wait-on http://127.0.0.1:4725/wd/hub/status
-          tail -n 20 appium-ios.log
+    - name: Start Appium server (iOS)
+      run: |
+        echo "📌 LOGGING: Starting Appium..."
+        APPIUM_CMD=$(which appium)
+        echo "📌 LOGGING: Using Appium binary at $APPIUM_CMD"
 
-      - name: Set APP_PATH for iOS tests
-        run: echo "APP_PATH=$GITHUB_WORKSPACE/AppIos/TheApp.app" >> $GITHUB_ENV
+        $APPIUM_CMD -p 4725 \
+          --base-path /wd/hub \
+          --session-override \
+          --relaxed-security \
+          --allow-insecure=chromedriver_autodownload \
+          > appium-ios.log 2>&1 &
 
-      - name: Run Maven iOS tests
-        run: |
-          mvn clean test -Pios -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsIOS.xml -Dallure.results.directory=target/allure-results
+        echo "📌 LOGGING: Waiting for Appium to be ready..."
+        npx wait-on http://127.0.0.1:4725/wd/hub/status
 
-      - name: Upload iOS Allure report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-allure-report
-          path: target/site/allure-report/
+        echo "✅ Appium is up and running!"
+        tail -n 20 appium-ios.log
 
+    - name: 📦 Set APP_PATH for iOS tests
+      run: echo "APP_PATH=$GITHUB_WORKSPACE/AppIos/TheApp.app" >> $GITHUB_ENV
+
+    - name: Run Maven iOS tests
+      run: |
+        mvn clean test -Pios -Dsurefire.suiteXmlFiles=src/test/resources/AllTestsIOS.xml -Dallure.results.directory=target/allure-results
+
+    - name: Upload iOS Allure report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-allure-report
+        path: target/site/allure-report/
+        
   api-test:
+
     name: 🧪 API Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -196,17 +215,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install unzip
-        run: sudo apt-get install -y unzip wget
-
       - name: Install Allure CLI
         run: |
           ALLURE_VERSION=2.35.1
-          mkdir -p $HOME/allure
           wget https://github.com/allure-framework/allure2/releases/download/$ALLURE_VERSION/allure-$ALLURE_VERSION.zip
           unzip -o allure-$ALLURE_VERSION.zip -d $HOME/allure
           echo "$HOME/allure/allure-$ALLURE_VERSION/bin" >> $GITHUB_PATH
-          export PATH=$HOME/allure/allure-$ALLURE_VERSION/bin:$PATH
           allure --version
 
       - name: Cache Maven packages
@@ -230,7 +244,8 @@ jobs:
 
       - name: Generate Allure report (optional)
         if: always()
-        run: mvn allure:report || true
+        run: |
+          mvn allure:report || true
 
       - name: Upload Allure HTML report (API)
         if: always()
