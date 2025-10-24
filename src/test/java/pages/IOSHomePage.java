@@ -2,19 +2,18 @@ package pages;
 
 import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import utils.CommonUtilsIOS;
 import base.IOSBasePage;
 
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertTrue;
 
 public class IOSHomePage {
 
-    private AppiumDriver driver;
-    private WebDriverWait wait;
-    private CommonUtilsIOS utils;
+    private final AppiumDriver driver;
+    private final WebDriverWait wait;
+    private final CommonUtilsIOS utils;
 
     private final By loginScreenButton = By.xpath("//XCUIElementTypeOther[@name='Login Screen A fake login screen for testing']");
     private final By inputField = By.xpath("//XCUIElementTypeTextField");
@@ -32,8 +31,8 @@ public class IOSHomePage {
     }
 
     public void enterText(String text) {
-    utils.enterText(inputField, text);
-}
+        utils.enterText(inputField, text);
+    }
 
     public void verifyTextExists() {
         assertTrue(utils.isElementPresent(staticTextElements), "Текстові елементи не знайдено");

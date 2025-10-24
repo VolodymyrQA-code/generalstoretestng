@@ -2,20 +2,18 @@ package pages;
 
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.OutputType;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.apache.commons.io.FileUtils;
 import io.qameta.allure.Step;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Duration;
+
+import static org.testng.Assert.assertTrue;
 
 public class SplashPage {
-    private AndroidDriver driver;
+
+    private final AndroidDriver driver;
 
     // ID елементів
     private final By splashId = By.id("com.androidsample.generalstore:id/splashscreen");
@@ -27,37 +25,39 @@ public class SplashPage {
 
     /**
      * Перевіряє, чи splash screen відображається.
-     * У CI збільшений timeout.
-     * Логування часу очікування в Allure.
+     * Викликається з тесту TestNG через assertTrue.
      */
     @Step("Перевірка відображення Splash Screen")
     public boolean isSplashDisplayed() {
-    long startTime = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
 
-    boolean splashPresent = !driver.findElements(splashId).isEmpty();
+        boolean splashPresent = !driver.findElements(splashId).isEmpty();
 
-    if (splashPresent) {
-        long elapsed = System.currentTimeMillis() - startTime;
-        System.out.println("✅ Splash screen visible immediately! Час перевірки: " + elapsed / 1000.0 + "s");
-        return true;
-    } else {
-        // Якщо splash не знайдено, перевіряємо одразу головний екран
-        boolean homeVisible = !driver.findElements(homeToolbarId).isEmpty();
-
-        if (homeVisible) {
+        if (splashPresent) {
             long elapsed = System.currentTimeMillis() - startTime;
-            System.out.println("ℹ️ Splash skipped, але головний екран видимий. Час перевірки: " + elapsed / 1000.0 + "s");
+            System.out.println("✅ Splash screen visible immediately! Час перевірки: " + elapsed / 1000.0 + "s");
             return true;
         } else {
-            System.out.println("❌ Neither splash nor home screen found. Saving debug info...");
-            saveDebugInfo();
-            return false;
+            boolean homeVisible = !driver.findElements(homeToolbarId).isEmpty();
+            if (homeVisible) {
+                long elapsed = System.currentTimeMillis() - startTime;
+                System.out.println("ℹ️ Splash skipped, але головний екран видимий. Час перевірки: " + elapsed / 1000.0 + "s");
+                return true;
+            } else {
+                System.out.println("❌ Neither splash nor home screen found. Saving debug info...");
+                saveDebugInfo();
+                return false;
+            }
         }
     }
-}
 
-
-    
+    /**
+     * Виклик для TestNG:
+     * assertTrue(splashPage.verifySplashVisible(), "Splash не відображено!");
+     */
+    public void verifySplashVisible() {
+        assertTrue(isSplashDisplayed(), "Splash screen не відображається");
+    }
 
     @Step("Збереження скріншоту та PageSource для дебагу")
     private void saveDebugInfo() {

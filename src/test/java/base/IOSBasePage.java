@@ -4,6 +4,8 @@ import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.options.BaseOptions;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,9 +21,7 @@ public class IOSBasePage {
 
     protected static IOSDriver driver;
 
-    /**
-     * 🪵 DEBUG: Створення або перевірка існуючого iOS Driver.
-     */
+    @BeforeClass
     public void startDriver() {
         if (driver != null) {
             System.out.println("⚠️ LOGGING: Драйвер вже існує, повторне створення пропущено.");
@@ -31,22 +31,22 @@ public class IOSBasePage {
         System.out.println("🚀 LOGGING: Ініціалізуємо iOS Driver...");
 
         try {
-            // 🪵 DEBUG: 1️⃣ Отримуємо шлях до .app або .ipa
+            // ✅ Динамічне визначення шляху до TheApp.app
+            String projectDir = System.getProperty("user.dir");
             String appPath = System.getenv("APP_PATH");
 
             if (appPath == null || appPath.isEmpty()) {
-                File localApp = new File("/Users/IUAR0044/generalstore/AppIos/TheApp.app");
+                File localApp = new File(projectDir + "/AppIos/TheApp.app");
                 if (localApp.exists()) {
                     appPath = localApp.getAbsolutePath();
                     System.out.println("📦 LOGGING: Використано локальний .app → " + appPath);
                 } else {
-                    System.out.println("⚠️ LOGGING: Не знайдено .app/.ipa — використовуємо bundleId");
+                    System.out.println("⚠️ LOGGING: Не знайдено TheApp.app → використовуємо bundleId");
                 }
             } else {
                 System.out.println("📦 LOGGING: APP_PATH з env → " + appPath);
             }
 
-            // 🪵 DEBUG: 2️⃣ Формуємо опції драйвера
             BaseOptions options = new BaseOptions()
                     .amend("platformName", "iOS")
                     .amend("automationName", "XCUITest")
@@ -56,13 +56,13 @@ public class IOSBasePage {
                     .amend("newCommandTimeout", 300)
                     .amend("noReset", false);
 
+            // Якщо є .app — використовуємо його, інакше bundleId
             if (appPath != null && !appPath.isEmpty()) {
                 options.amend("app", appPath);
             } else {
                 options.amend("bundleId", "com.cloudinary.theapp");
             }
 
-            // 🪵 DEBUG: 3️⃣ Створюємо драйвер
             System.out.println("🧠 LOGGING: Створюємо iOSDriver на порту 4725...");
             driver = new IOSDriver(new URL("http://127.0.0.1:4725/wd/hub"), options);
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
@@ -77,9 +77,7 @@ public class IOSBasePage {
         }
     }
 
-    /**
-     * 🧹 Закриття драйвера.
-     */
+    @AfterClass
     public void stopDriver() {
         if (driver != null) {
             System.out.println("🧹 LOGGING: Закриваємо iOS Driver...");

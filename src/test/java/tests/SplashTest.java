@@ -2,24 +2,25 @@ package tests;
 
 import base.BasePage;
 import io.appium.java_client.android.AndroidDriver;
-import org.junit.jupiter.api.*;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 import pages.SplashPage;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+import static org.testng.Assert.assertTrue;
+
 public class SplashTest extends BasePage {
 
     private SplashPage splashPage;
 
-    @BeforeAll
+    @BeforeClass
     public void initPage() {
         AndroidDriver driver = BasePage.getDriver();
         splashPage = new SplashPage(driver);
     }
 
-   @Test
-@DisplayName("SplashActivity is displayed on launch")
-public void testSplashAppears() {
-    boolean splashFound = splashPage.isSplashDisplayed();
-    Assertions.assertTrue(splashFound, "Splash screen was not found!");
-}
+    @Test(description = "SplashActivity is displayed on launch")
+    public void testSplashAppears() {
+        boolean splashFound = splashPage.isSplashDisplayed();
+        assertTrue(splashFound, "Splash screen was not found!");
+    }
 }

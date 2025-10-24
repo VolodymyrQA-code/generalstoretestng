@@ -3,11 +3,11 @@ package base;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
 import io.appium.java_client.remote.AutomationName;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +16,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.Arrays;
 
 public class BasePage {
     protected static AndroidDriver driver;
@@ -115,10 +114,9 @@ public class BasePage {
         System.out.println("⚠️ No resumed activity detected after timeout.");
     }
 
-    @BeforeAll
-    static void setup() {
+    @BeforeClass
+    public static void setup() {
         try {
-            // === Визначення шляху до APK ===
             String apkPath = System.getenv("APK_PATH");
             if (apkPath == null || apkPath.isEmpty()) {
                 apkPath = System.getProperty("user.dir") + "/app/General-Store.apk";
@@ -128,16 +126,13 @@ public class BasePage {
             }
             System.out.println("📦 Using APK path: " + apkPath);
 
-            // === Отримання підключеного пристрою ===
             String deviceName = getConnectedDevice();
 
-            // === Перевірка System UI на CI ===
             if (isCI() && !isSystemUIResponsive()) {
                 System.out.println("⚠️ SystemUI detected before Appium connect — pressing Wait...");
                 pressWaitButton();
             }
 
-            // === Налаштування UiAutomator2Options ===
             UiAutomator2Options options = new UiAutomator2Options()
                     .setApp(apkPath)
                     .setDeviceName(deviceName)
@@ -154,7 +149,6 @@ public class BasePage {
                 options.setNewCommandTimeout(Duration.ofSeconds(600));
             }
 
-            // === Підключення до Appium ===
             String appiumUrl = "http://127.0.0.1:4723/wd/hub";
             System.out.println("🌐 Connecting to Appium at: " + appiumUrl);
 
@@ -162,10 +156,8 @@ public class BasePage {
                 throw new RuntimeException("❌ Appium server is not running at " + appiumUrl);
             }
 
-            // === Очікування активної Activity перед стартом ===
             waitForResumedActivity();
 
-            // === Ініціалізація драйвера з ретраєм ===
             int retryCount = 0, maxRetries = 3;
             while (retryCount < maxRetries) {
                 try {
@@ -180,11 +172,9 @@ public class BasePage {
                 }
             }
 
-            // === Налаштування WebDriverWait ===
             int waitSeconds = isCI() ? 25 : 5;
             wait = new WebDriverWait(driver, Duration.ofSeconds(waitSeconds));
 
-            // --- швидка перевірка splash screen ---
             By splashLocator = By.id("com.androidsample.generalstore:id/splash_logo");
             boolean splashPresent = !driver.findElements(splashLocator).isEmpty();
 
@@ -208,8 +198,8 @@ public class BasePage {
         }
     }
 
-    @AfterAll
-    static void tearDown() {
+    @AfterClass
+    public static void tearDown() {
         if (driver != null) {
             try {
                 System.out.println("🧹 Cleaning up: removing app...");

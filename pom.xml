@@ -32,41 +32,20 @@
             <version>10.0.0</version>
         </dependency>
 
-        <!-- JUnit 5 -->
+        <!-- TestNG -->
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>5.10.0</version>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.11.0</version>
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.junit.platform</groupId>
-            <artifactId>junit-platform-suite-api</artifactId>
-            <version>1.10.0</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.platform</groupId>
-            <artifactId>junit-platform-suite-engine</artifactId>
-            <version>1.10.2</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Allure -->
+        <!-- Allure TestNG -->
         <dependency>
             <groupId>io.qameta.allure</groupId>
-            <artifactId>allure-junit5</artifactId>
+            <artifactId>allure-testng</artifactId>
             <version>2.30.0</version>
             <scope>test</scope>
-        </dependency>
-
-        <!-- Commons IO -->
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.12.0</version>
         </dependency>
 
         <!-- RestAssured -->
@@ -77,12 +56,11 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- TestNG -->
+        <!-- Commons IO -->
         <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
-            <version>7.11.0</version>
-            <scope>test</scope>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.12.0</version>
         </dependency>
 
         <!-- JSON -->
@@ -95,12 +73,15 @@
 
     <build>
         <plugins>
-            <!-- Maven Surefire для тестів -->
+            <!-- Maven Surefire для TestNG -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.4</version>
                 <configuration>
+                    <suiteXmlFiles>
+                        <!-- Можеш вказати дефолтний suite або залишити пустим і передавати через командний рядок -->
+                    </suiteXmlFiles>
                     <systemPropertyVariables>
                         <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
                     </systemPropertyVariables>
@@ -126,7 +107,7 @@
     </build>
 
     <profiles>
-        <!-- Android -->
+        <!-- Android Suite -->
         <profile>
             <id>android</id>
             <build>
@@ -135,16 +116,16 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <includes>
-                                <include>**/AllTestsSuite.java</include>
-                            </includes>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>/Users/IUAR0044/generalstoretestng/AllTestsAndroid.xml</suiteXmlFile>
+                            </suiteXmlFiles>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
         </profile>
 
-        <!-- API -->
+        <!-- API Suite -->
         <profile>
             <id>api</id>
             <build>
@@ -153,16 +134,16 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <includes>
-                                <include>**/ApiSuite.java</include>
-                            </includes>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>/Users/IUAR0044/generalstoretestng/AllTestsApi.xml</suiteXmlFile>
+                            </suiteXmlFiles>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
         </profile>
 
-        <!-- iOS -->
+        <!-- iOS Suite -->
         <profile>
             <id>ios</id>
             <build>
@@ -171,13 +152,14 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <includes>
-                                <include>**/IOSSuite.java</include>
-                            </includes>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>/Users/IUAR0044/generalstoretestng/AllTestsIOS.xml</suiteXmlFile>
+                            </suiteXmlFiles>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
         </profile>
     </profiles>
+
 </project>

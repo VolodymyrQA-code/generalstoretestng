@@ -1,67 +1,58 @@
 package tests;
 
 import io.restassured.response.Response;
-import org.junit.jupiter.api.*;
+import org.testng.annotations.*;
 import pages.ApiPostPage;
 import base.ApiBasePage;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
 
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ApiPostTests extends ApiBasePage {
 
-    private static ApiPostPage apiPostPage;
-    private static int postId;
+    private ApiPostPage apiPostPage;
+    private int postId;
 
-    @BeforeAll
-    public static void init() {
-        ApiBasePage.setup();
+    @BeforeClass
+    public void init() {
+        setup(); // ApiBasePage setup
         apiPostPage = new ApiPostPage();
     }
 
-    @Test
-    @Order(1)
-    @DisplayName("Create Post via API")
+    @Test(priority = 1, description = "Create Post via API")
     public void testCreatePost() {
         Response response = apiPostPage.createPost("Post created via API", "This is a test post created using RestAssured.");
-        assertEquals(201, response.statusCode());
+        assertEquals(response.statusCode(), 201);
         postId = response.jsonPath().getInt("id");
         assertNotNull(postId);
         System.out.println("✅ Created Post ID: " + postId);
     }
 
-    @Test
-    @Order(2)
-    @DisplayName("Get Post by ID")
+    @Test(priority = 2, description = "Get Post by ID", dependsOnMethods = "testCreatePost")
     public void testGetPost() {
         Response response = apiPostPage.getPost(postId);
-        assertEquals(200, response.statusCode());
-        assertEquals(postId, response.jsonPath().getInt("id"));
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.jsonPath().getInt("id"), postId);
         System.out.println("✅ Fetched Post ID: " + postId);
     }
 
-    @Test
-    @Order(3)
-    @DisplayName("Update Post")
+    @Test(priority = 3, description = "Update Post", dependsOnMethods = "testGetPost")
     public void testUpdatePost() {
         Response response = apiPostPage.updatePost(postId, "Updated Title via API", "This post was updated using PUT request.");
-        assertEquals(200, response.statusCode());
-        assertEquals("Updated Title via API", response.jsonPath().getString("title.rendered"));
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.jsonPath().getString("title.rendered"), "Updated Title via API");
         System.out.println("✅ Post updated successfully");
     }
 
-    @Test
-    @Order(4)
-    @DisplayName("Delete Post")
+    @Test(priority = 4, description = "Delete Post", dependsOnMethods = "testUpdatePost")
     public void testDeletePost() {
         Response response = apiPostPage.deletePost(postId);
-        assertEquals(200, response.statusCode());
+        assertEquals(response.statusCode(), 200);
         assertTrue(response.jsonPath().getBoolean("deleted"));
         System.out.println("✅ Post deleted successfully");
     }
 
-    @AfterAll
-    public static void cleanup() {
-        ApiBasePage.teardown();
+    @AfterClass
+    public void cleanup() {
+        teardown(); // ApiBasePage teardown
     }
 }

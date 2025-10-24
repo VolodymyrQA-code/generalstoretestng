@@ -1,8 +1,8 @@
 package base;
 
 import io.restassured.RestAssured;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 
 public class ApiBasePage {
 
@@ -10,14 +10,14 @@ public class ApiBasePage {
     protected static final String USERNAME = "admin";
     protected static final String PASSWORD = "Engineer_123";
 
-    @BeforeAll
+    @BeforeClass
     public static void setup() {
         System.out.println("=== Setting up API test configuration ===");
         RestAssured.baseURI = BASE_URI;
         RestAssured.authentication = RestAssured.preemptive().basic(USERNAME, PASSWORD);
     }
 
-    @AfterAll
+    @AfterClass
     public static void teardown() {
         System.out.println("=== API Test Execution Finished ===");
     }
