@@ -1,7 +1,7 @@
 package pages;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
-import utils.CommonUtils;
+import utils.CommonUtilsAndroid;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,7 +15,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import base.BasePage;
 
 public class HomePage {
-    private CommonUtils utils;
+    private CommonUtilsAndroid utils;
     private AndroidDriver driver;
     private WebDriverWait wait;
 
@@ -34,7 +34,7 @@ public class HomePage {
     public HomePage(AndroidDriver driver, WebDriverWait wait) {
     this.driver = driver;
     this.wait = wait;
-    this.utils = new CommonUtils(driver);
+    this.utils = new CommonUtilsAndroid(driver);
     }
     
     public void verifyToolbarTitle() {

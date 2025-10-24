@@ -8,7 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import pages.HomePage;
 import pages.SplashPage;
-import utils.CommonUtils;
+import utils.CommonUtilsAndroid;
+import utils.CommonUtilsIOS;
 import utils.ConfigReader;
 import java.time.Duration;
 import org.junit.jupiter.api.MethodOrderer;
@@ -23,14 +24,14 @@ import io.qameta.allure.SeverityLevel;
 public class HomeTest extends BasePage {
     private HomePage home;
     private SplashPage splash;
-    private CommonUtils utils;
+    private CommonUtilsAndroid utils;
 
     @BeforeEach
     void setupHomePage() {
         // Ініціалізація WebDriverWait і HomePage перед кожним тестом
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         home = new HomePage(driver, wait);
-        utils = new CommonUtils(driver);
+        utils = new CommonUtilsAndroid(driver);
     }
 
     @Test 

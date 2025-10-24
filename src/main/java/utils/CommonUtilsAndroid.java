@@ -16,12 +16,12 @@ import java.time.Duration;
 import java.util.Collections;
 import org.openqa.selenium.interactions.Sequence;
 
-public class CommonUtils {
+public class CommonUtilsAndroid {
 
     private final AndroidDriver driver;
     private final WebDriverWait wait;
 
-    public CommonUtils(WebDriver driver2) {
+    public CommonUtilsAndroid(WebDriver driver2) {
         this.driver = (AndroidDriver) driver2;
         this.wait = new WebDriverWait(driver2, Duration.ofSeconds(30));
     }
